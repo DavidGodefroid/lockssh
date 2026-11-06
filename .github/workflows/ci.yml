@@ -1,0 +1,166 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "37 3 * * *" # nightly: fuzzing, macOS
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: test (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        # macOS runs on main, nightly and by hand, not on pull requests:
+        # hosted macOS runners are too often not acquired to gate a PR.
+        os: ${{ github.event_name == 'pull_request' && fromJSON('["ubuntu-latest"]') || fromJSON('["ubuntu-latest","macos-latest"]') }}
+    runs-on: ${{ matrix.os }}
+    env:
+      CGO_ENABLED: "0"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.26.x"
+          check-latest: true
+      - name: go vet
+        run: go vet ./...
+      - name: go test
+        shell: bash
+        run: |
+          set -o pipefail
+          go test ./... 2>&1 | tee test.log || {
+            # Surface the failures as annotations, readable without the logs.
+            grep -E -- '--- FAIL|_test\.go:[0-9]+:|^FAIL|panic:' test.log | head -40 | sed 's/^/::error::/'
+            exit 1
+          }
+
+  lint:
+    name: lint (hygiene, gofmt, staticcheck, govulncheck, goreleaser check)
+    runs-on: ubuntu-latest
+    env:
+      CGO_ENABLED: "0"
+    steps:
+      - uses: actions/checkout@v7
+      - name: hygiene (no internal names in tracked files)
+        run: sh scripts/hygiene.sh
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.26.x"
+          check-latest: true
+      - name: gofmt
+        run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
+      - name: staticcheck
+        run: go run honnef.co/go/tools/cmd/staticcheck@v0.8.1 ./...
+      - name: govulncheck
+        run: go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...
+      - name: goreleaser check
+        uses: goreleaser/goreleaser-action@v7
+        with:
+          distribution: goreleaser
+          version: "~> v2"
+          args: check
+
+  # A real OpenSSH server in Docker: the quoted argv reaches the program
+  # through the login shell exactly, a timeout kills the command, the exit
+  # status comes back.
+  integration:
+    name: integration (OpenSSH)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CGO_ENABLED: "0"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.26.x"
+          check-latest: true
+      - name: pull image
+        run: docker pull --quiet lscr.io/linuxserver/openssh-server:latest
+      - name: go test -tags integration
+        run: go test -tags integration -count=1 -timeout 10m -run TestOpenSSH ./internal/sshconsole/
+
+  # The image of docs/docker.md: both targets build, ALLOWED_UIDS is
+  # checked, and test/docker/e2e.py follows the guide against an SSH server
+  # container (console in a pseudo-terminal, agent in throwaway containers,
+  # peers outside the setup refused).
+  docker:
+    name: docker (build, vault target, end to end)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - name: docker build
+        run: docker build --build-arg VERSION=ci -t lockssh .
+      - name: the launcher runs every command in the image
+        run: |
+          set -x
+          sh scripts/lockssh version | grep -x 'lockssh launcher dev (image lockssh)'
+          mkdir -p "$RUNNER_TEMP/proj" && cd "$RUNNER_TEMP/proj"
+          sh "$GITHUB_WORKSPACE/scripts/lockssh" init claude
+          grep -Eq '"command": ?"lockssh"' .mcp.json
+          test "$(stat -c %u .mcp.json)" = "$(id -u)"
+          sh "$GITHUB_WORKSPACE/scripts/lockssh" profile add --non-interactive --json --host web1.example.com --user deploy --key "~/.ssh/id_ed25519" | grep -q '"profile":"dev"'
+          code=0; sh "$GITHUB_WORKSPACE/scripts/lockssh" profile add --non-interactive --json --host web1.example.com --user deploy --key "~/.ssh/id_ed25519" >out || code=$?
+          test "$code" != 0 && grep -q '"code":"exists"' out
+          # A fresh setup passes (warnings only: no console runs here), and
+          # .lockssh stays what lox up copies: yours, written by you only.
+          sh "$GITHUB_WORKSPACE/scripts/lockssh" doctor --fix --yes --json >out
+          grep -q '"ok":true' out && grep -q '"check":"project","status":"ok"' out
+          test "$(stat -c %u .lockssh)" = "$(id -u)" && test -z "$(find .lockssh \( -perm -0020 -o -perm -0002 -o ! -user "$(id -u)" \) -print)"
+          # What an older doctor --fix left (.lockssh and pii.toml given to
+          # the console account) is given back to you.
+          printf '[[mask]]\n' >.lockssh/pii.toml
+          docker run --rm --user 0 --entrypoint chown -v "$PWD:$PWD" lockssh 10041 "$PWD/.lockssh" "$PWD/.lockssh/pii.toml"
+          code=0; sh "$GITHUB_WORKSPACE/scripts/lockssh" doctor --json >out || code=$?
+          test "$code" = 1 && grep -q 'as an older lockssh doctor --fix left it' out
+          sh "$GITHUB_WORKSPACE/scripts/lockssh" doctor --fix --yes --json >out
+          grep -q '"ok":true' out && grep -q '"fixed":\["' out
+          test "$(stat -c %u .lockssh)" = "$(id -u)" && test "$(stat -c %u .lockssh/pii.toml)" = "$(id -u)"
+          test -z "$(find .lockssh \( -perm -0020 -o -perm -0002 -o ! -user "$(id -u)" \) -print)"
+          # No lox up here: no console's socket to mount (exit 2, as a client
+          # that finds no console), never the fixed lockssh-run instead.
+          code=0; sh "$GITHUB_WORKSPACE/scripts/lockssh" status --profile dev 2>err || code=$?
+          test "$code" = 2 && grep -q 'no .lockfamily/up.json' err
+          code=0; sh "$GITHUB_WORKSPACE/scripts/lockssh" install 2>err || code=$?
+          test "$code" = 1 && grep -q 'runs in Docker' err
+      - name: docker build --target vault
+        run: |
+          docker build --target vault -t lockssh-vault .
+          docker run --rm --entrypoint vault lockssh-vault version
+      - name: ALLOWED_UIDS
+        run: |
+          docker build --build-arg ALLOWED_UIDS=4242,4243 -t lockssh-allowed .
+          docker run --rm --entrypoint cat lockssh-allowed /etc/lockssh/system.toml | grep -x 'allowed_uids = \[4242,4243\]'
+          for bad in '1,,2' '0' '1000,0' '10041' '007' '65534'; do
+            if docker build --build-arg ALLOWED_UIDS="$bad" . >/dev/null 2>&1; then echo "ALLOWED_UIDS=$bad accepted" >&2; exit 1; fi
+          done
+      - name: docker build from the repository URL
+        if: github.event_name == 'push'
+        run: docker build -t lockssh-url "https://github.com/${{ github.repository }}.git#${{ github.sha }}"
+      - name: pull the SSH server
+        run: docker pull --quiet lscr.io/linuxserver/openssh-server:latest
+      - name: end to end
+        run: python3 test/docker/e2e.py lockssh
+
+  fuzz:
+    name: fuzz (nightly)
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    env:
+      CGO_ENABLED: "0"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.26.x"
+          check-latest: true
+      - name: FuzzLineRoundTrip
+        run: go test -run '^$' -fuzz '^FuzzLineRoundTrip$' -fuzztime 120s ./internal/command/

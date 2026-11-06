@@ -1,0 +1,138 @@
+name: release
+
+# Runs only when a version tag is pushed. Creating the tag (and the first
+# push) is a manual, explicit decision.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: test before release
+    runs-on: ubuntu-latest
+    env:
+      CGO_ENABLED: "0"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.26.x"
+          check-latest: true
+      - name: go vet
+        run: go vet ./...
+      - name: go test
+        run: go test ./...
+
+  goreleaser:
+    name: goreleaser
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # create the GitHub release and upload assets
+      id-token: write # cosign keyless signing (GitHub OIDC)
+    env:
+      CGO_ENABLED: "0"
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # changelog needs the full history and tags
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.26.x"
+          check-latest: true
+      - uses: sigstore/cosign-installer@v3
+      - uses: anchore/sbom-action/download-syft@v0
+      - uses: goreleaser/goreleaser-action@v7
+        with:
+          distribution: goreleaser
+          version: "~> v2"
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # The image the launcher runs (scripts/lockssh): ghcr.io/davidgodefroid/
+  # lockssh:X.Y.Z and :X.Y.Z-vault, for amd64 and arm64, each built on a
+  # native runner, then joined in one manifest per tag and signed with
+  # cosign (keyless, by digest). Publishing elsewhere changes this job and
+  # the registry line of scripts/lockssh only.
+  image:
+    name: image ${{ matrix.arch }}
+    needs: test
+    strategy:
+      matrix:
+        include:
+          - { arch: amd64, runner: ubuntu-24.04 }
+          - { arch: arm64, runner: ubuntu-24.04-arm }
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+      packages: write # push to ghcr.io
+    env:
+      IMAGE: ghcr.io/davidgodefroid/lockssh
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: log in to ghcr.io
+        run: printf '%s' "$GITHUB_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: build and push
+        run: |
+          v=${GITHUB_REF_NAME#v}
+          docker build --build-arg VERSION="$GITHUB_REF_NAME" -t "$IMAGE:$v-${{ matrix.arch }}" .
+          docker build --build-arg VERSION="$GITHUB_REF_NAME" --target vault -t "$IMAGE:$v-vault-${{ matrix.arch }}" .
+          docker push "$IMAGE:$v-${{ matrix.arch }}"
+          docker push "$IMAGE:$v-vault-${{ matrix.arch }}"
+
+  image-manifest:
+    name: image manifest
+    needs: image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write # push to ghcr.io
+      id-token: write # cosign keyless signing (GitHub OIDC)
+    env:
+      IMAGE: ghcr.io/davidgodefroid/lockssh
+    steps:
+      - uses: sigstore/cosign-installer@7e8b541eb2e61bf99390e1afd4be13a184e9ebc5 # v3.10.1
+        with:
+          cosign-release: v2.6.1
+      - name: log in to ghcr.io
+        run: printf '%s' "$GITHUB_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: manifests, signed
+        run: |
+          v=${GITHUB_REF_NAME#v}
+          for tag in "$v" "$v-vault"; do
+            docker buildx imagetools create -t "$IMAGE:$tag" "$IMAGE:$tag-amd64" "$IMAGE:$tag-arm64"
+            digest=$(docker buildx imagetools inspect "$IMAGE:$tag" --format '{{json .Manifest.Digest}}' | tr -d '"')
+            cosign sign --yes "$IMAGE@$digest"
+          done
+
+  # Asks the Homebrew tap (DavidGodefroid/homebrew-tap) to bump the lockssh
+  # formula to this release, once the archives and the images are published
+  # and signed: the tap's bump workflow verifies them with cosign before
+  # rewriting the formula. Needs the secret TAP_DISPATCH_TOKEN, a fine-grained
+  # token limited to the tap (Contents: read and write); without it the step
+  # is skipped. The token is in this job only, which runs no action.
+  tap:
+    name: homebrew tap
+    needs: [goreleaser, image-manifest]
+    runs-on: ubuntu-latest
+    permissions: {}
+    env:
+      TAP_DISPATCH_TOKEN: ${{ secrets.TAP_DISPATCH_TOKEN }}
+    steps:
+      - name: Bump the Homebrew formula
+        env:
+          GH_TOKEN: ${{ secrets.TAP_DISPATCH_TOKEN }}
+        if: ${{ env.TAP_DISPATCH_TOKEN != '' }}
+        run: |
+          gh api repos/DavidGodefroid/homebrew-tap/dispatches \
+            -f event_type=bump \
+            -f "client_payload[formula]=lockssh" \
+            -f "client_payload[version]=${GITHUB_REF_NAME}"

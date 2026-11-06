@@ -1,0 +1,324 @@
+package main
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"flag"
+	"fmt"
+	"io"
+	"os"
+	"os/signal"
+	"sort"
+	"strings"
+	"syscall"
+
+	"github.com/DavidGodefroid/lockkit/client"
+	kconfig "github.com/DavidGodefroid/lockkit/config"
+	"github.com/DavidGodefroid/lockkit/ipc"
+	"github.com/DavidGodefroid/lockkit/mcpkit"
+	"github.com/DavidGodefroid/lockkit/render"
+
+	"github.com/DavidGodefroid/lockssh/internal/config"
+	"github.com/DavidGodefroid/lockssh/internal/mcptools"
+	"github.com/DavidGodefroid/lockssh/internal/product"
+	"github.com/DavidGodefroid/lockssh/internal/sshconsole"
+)
+
+// parseInterleaved parses flags anywhere among the positional arguments.
+func parseInterleaved(fs *flag.FlagSet, args []string) ([]string, error) {
+	var pos []string
+	for {
+		if err := fs.Parse(args); err != nil {
+			return nil, err
+		}
+		rest := fs.Args()
+		if len(rest) == 0 {
+			return pos, nil
+		}
+		if used := len(args) - len(rest); used > 0 && args[used-1] == "--" {
+			return append(pos, rest...), nil
+		}
+		pos = append(pos, rest[0])
+		args = rest[1:]
+	}
+}
+
+// usageError is a usage or configuration error (exit 3).
+type usageError struct{ msg string }
+
+func (e usageError) Error() string { return e.msg }
+
+func (e env) loadProfiles() (map[string]config.Profile, string, error) {
+	if e.userConfig != "" {
+		return config.LoadFrom(e.cwd, e.userConfig)
+	}
+	return config.Load(e.cwd)
+}
+
+func profileNames(ps map[string]config.Profile) []string {
+	names := make([]string, 0, len(ps))
+	for n := range ps {
+		names = append(names, n)
+	}
+	sort.Strings(names)
+	return names
+}
+
+// resolveProfile checks name against the configured profiles, or picks the
+// only one when name is empty.
+func resolveProfile(e env, name string) (string, error) {
+	ps, _, err := e.loadProfiles()
+	if err != nil {
+		return "", usageError{err.Error()}
+	}
+	names := profileNames(ps)
+	if name != "" {
+		if err := checkProfileArg(ps, name); err != nil {
+			return "", usageError{err.Error()}
+		}
+		return name, nil
+	}
+	switch len(names) {
+	case 0:
+		return "", usageError{"no profile is configured: run lockssh profile add, or add one to .lockssh/config.toml"}
+	case 1:
+		return names[0], nil
+	}
+	return "", usageError{fmt.Sprintf("several profiles are configured (%s): pass --profile", strings.Join(names, ", "))}
+}
+
+// checkProfileArg checks a --profile value against the configured
+// profiles. The value is never quoted, as lockkit's CheckProfileName does
+// not quote it: it may be a token or a URL pasted in the wrong place.
+func checkProfileArg(ps map[string]config.Profile, name string) error {
+	if err := kconfig.CheckProfileName(name, false); err != nil {
+		return errors.New("--profile: " + err.Error())
+	}
+	if _, ok := ps[name]; !ok {
+		return errors.New("--profile names no configured profile; configured profiles: " + orNone(profileNames(ps)))
+	}
+	return nil
+}
+
+func orNone(s []string) string {
+	if len(s) == 0 {
+		return "none"
+	}
+	return strings.Join(s, ", ")
+}
+
+// dialer dials the console of the lock instance ("" is the one lock of
+// the socket directory itself).
+func (e env) dialer(instance string) func(profile string) (mcptools.Conn, error) {
+	if e.dial != nil {
+		return e.dial
+	}
+	return mcptools.DialClient(e.cwd, version, instance)
+}
+
+// resolveInstance is the lock instance a client command reaches, resolved
+// at each call (nothing is cached): --instance, else LOCKSSH_INSTANCE, else the one lock
+// lea mounts.
+func resolveInstance(flagValue string) (string, error) {
+	return client.ResolveInstance(product.P, flagValue)
+}
+
+// cliOpts are the flags of the client commands.
+type cliOpts struct {
+	profile, instance, intent, ticket string
+	json, dryRun, unmask              bool
+}
+
+func (o *cliOpts) flags(fs *flag.FlagSet, run bool) {
+	fs.StringVar(&o.profile, "profile", "", "profile")
+	fs.StringVar(&o.instance, client.FlagInstance, "", "reach this lock among several of this type (lea mounts each at /run/lockssh/NAME)")
+	fs.BoolVar(&o.json, "json", false, "JSON output")
+	if run {
+		fs.StringVar(&o.intent, "intent", "", "one line telling the human why")
+		fs.StringVar(&o.ticket, "ticket", "", "run the pending request of this ticket, once the hub decided it (hub mode)")
+		fs.BoolVar(&o.dryRun, "dry-run", false, "show the verdict and the approval screen only")
+		fs.BoolVar(&o.unmask, "unmask", false, "ask the human for the output in clear (refused unless allowed in the console)")
+	}
+}
+
+// clientUsage is the usage line of each client command; positional is
+// how many positional arguments it takes (-1: one or more, the argv).
+var clientUsage = map[string]struct {
+	usage      string
+	positional int
+}{
+	"status":  {"lockssh status [--profile P] [--instance NAME] [--json]", 0},
+	"run":     {"lockssh run [--intent TEXT] [--unmask] [--dry-run] [--ticket T] [--profile P] [--instance NAME] [--json] [--] PROGRAM [ARG]...", -1},
+	"request": {`lockssh request "CHANGE" [--profile P] [--instance NAME] [--json]`, 1},
+	"logout":  {"lockssh logout [--profile P] [--instance NAME] [--json]", 0},
+}
+
+func signalContext() (context.Context, context.CancelFunc) {
+	return signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+}
+
+// runClient runs one client command against the profile's console.
+func runClient(e env, cmd string, args []string) int {
+	u := clientUsage[cmd]
+	fs := flag.NewFlagSet(cmd, flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	var o cliOpts
+	o.flags(fs, cmd == "run")
+	var pos []string
+	var err error
+	if cmd == "run" {
+		// The flags come first: the program's own flags (-n, -u) must not
+		// be read as lockssh's.
+		if err = fs.Parse(args); err == nil {
+			pos = fs.Args()
+		}
+	} else {
+		pos, err = parseInterleaved(fs, args)
+	}
+	if err != nil {
+		// The flag package quotes the value it refuses, which may be a
+		// secret pasted in the wrong place.
+		return usageFail(e, cmd, u.usage, "wrong arguments")
+	}
+	if (u.positional >= 0 && len(pos) != u.positional) || (u.positional < 0 && len(pos) == 0) {
+		return usageFail(e, cmd, u.usage, "wrong number of arguments")
+	}
+	method, params, what := request(cmd, pos, o)
+	instance, err := resolveInstance(o.instance)
+	if err != nil {
+		return usageFail(e, cmd, u.usage, err.Error())
+	}
+	profile, err := resolveProfile(e, o.profile)
+	if err != nil {
+		return usageFail(e, cmd, u.usage, err.Error())
+	}
+	c, err := e.dialer(instance)(profile)
+	if err != nil {
+		var nc *client.NoConsoleError
+		if errors.As(err, &nc) {
+			fmt.Fprintf(e.stderr, "lockssh %s: no console runs for profile %s: %s\n", cmd, profile, nc.Hint())
+			return exitNoConsole
+		}
+		fmt.Fprintf(e.stderr, "lockssh %s: %v\n", cmd, err)
+		return exitFail
+	}
+	defer c.Close()
+	// No timeout: the human may take up to the console's approval timeout.
+	ctx, stop := signalContext()
+	defer stop()
+	var out any
+	if err := c.Call(ctx, method, params, &out); err != nil {
+		return callFail(e, cmd, err)
+	}
+	return printOut(e, o, what, out)
+}
+
+// request turns a command into the console call.
+func request(cmd string, pos []string, o cliOpts) (method string, params any, what string) {
+	switch cmd {
+	case "status":
+		return ipc.MethodStatus, nil, ""
+	case "logout":
+		return ipc.MethodLogout, nil, ""
+	case "request":
+		return ipc.MethodChangeRequest, ipc.ChangeParams{Change: pos[0]}, ""
+	}
+	p := mcptools.Params(mcptools.RunIn{Argv: pos, Intent: o.intent, Unmask: o.unmask, Ticket: o.ticket})
+	if o.dryRun {
+		return sshconsole.MethodPlan, p, ""
+	}
+	return sshconsole.MethodRun, p, "results"
+}
+
+// callFail reports a console error: a refusal or denial (exit 1), a closed
+// console (exit 2).
+func callFail(e env, cmd string, err error) int {
+	var re *ipc.RPCError
+	if errors.As(err, &re) {
+		if re.Code == ipc.CodeRefused && re.Data != nil {
+			fmt.Fprintf(e.stderr, "lockssh %s: refused [%s]: %s\n", cmd, re.Data.Code, re.Message)
+			if re.Data.Hint != "" {
+				fmt.Fprintf(e.stderr, "  hint: %s (retry: %s)\n", re.Data.Hint, re.Data.Retry)
+			}
+			return exitFail
+		}
+		fmt.Fprintf(e.stderr, "lockssh %s: %s\n", cmd, re.Message)
+		return exitFail
+	}
+	if errors.Is(err, client.ErrConsoleClosed) {
+		fmt.Fprintf(e.stderr, "lockssh %s: the console closed the connection\n", cmd)
+		return exitNoConsole
+	}
+	fmt.Fprintf(e.stderr, "lockssh %s: %v\n", cmd, err)
+	return exitFail
+}
+
+// outputCaps bound what a client command prints.
+var outputCaps = render.Caps{MaxCellChars: 4096, MaxOutputBytes: 1 << 20}
+
+func printOut(e env, o cliOpts, what string, out any) int {
+	if res, ok := out.(map[string]any); ok && what != "" && res["status"] != "pending" {
+		// op.run: the data, framed. A pending answer (decided on lockhub)
+		// is printed whole: its ticket is what --ticket runs once decided.
+		out = res["data"]
+	}
+	if o.json {
+		if err := render.Value(e.stdout, out, outputCaps); err != nil {
+			fmt.Fprintln(e.stderr, "lockssh:", err)
+			return exitFail
+		}
+		return exitOK
+	}
+	if what != "" {
+		fmt.Fprintln(e.stdout, mcpkit.Untrusted(what, "the server"))
+	}
+	b, err := json.MarshalIndent(out, "", "  ")
+	if err != nil {
+		fmt.Fprintln(e.stderr, "lockssh:", err)
+		return exitFail
+	}
+	fmt.Fprintln(e.stdout, string(b))
+	return exitOK
+}
+
+// runMCP is `lockssh mcp [--profile P] [--instance NAME]`: an MCP server on stdin/stdout.
+func runMCP(e env, args []string) int {
+	const usage = "lockssh mcp [--profile P] [--instance NAME]"
+	fs := flag.NewFlagSet("mcp", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	profile := fs.String("profile", "", "pin the server to one profile")
+	flagInstance := fs.String(client.FlagInstance, "", "reach this lock among several of this type (lea mounts each at /run/lockssh/NAME)")
+	pos, err := parseInterleaved(fs, args)
+	if err != nil || len(pos) > 0 {
+		return usageFail(e, "mcp", usage, "wrong arguments")
+	}
+	instance, err := resolveInstance(*flagInstance)
+	if err != nil {
+		return usageFail(e, "mcp", usage, err.Error())
+	}
+	if _, _, err := e.loadProfiles(); err != nil {
+		return usageFail(e, "mcp", usage, err.Error())
+	}
+	if *profile != "" {
+		if _, err := resolveProfile(e, *profile); err != nil {
+			return usageFail(e, "mcp", usage, err.Error())
+		}
+	}
+	s := mcptools.New(mcptools.Options{
+		Pinned: *profile,
+		Profiles: func() ([]string, error) {
+			ps, _, err := e.loadProfiles()
+			return profileNames(ps), err
+		},
+		Dial:    e.dialer(instance),
+		Version: version,
+	})
+	ctx, stop := signalContext()
+	defer stop()
+	if err := mcpkit.Serve(ctx, s, e.stdin, e.stdout); err != nil {
+		fmt.Fprintf(e.stderr, "lockssh mcp: %v\n", err)
+		return exitFail
+	}
+	return exitOK
+}
