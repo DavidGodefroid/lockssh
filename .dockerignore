@@ -1,0 +1,12 @@
+.git
+.github
+dist
+site
+/lockssh
+*.test
+*.out
+coverage.*
+go.work
+go.work.sum
+docs/design
+docs/plan

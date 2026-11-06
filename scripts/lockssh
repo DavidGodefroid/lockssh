@@ -1,0 +1,674 @@
+#!/bin/sh
+# lockssh: the launcher. lockssh runs in Docker; this script, installed as
+# `lockssh` on the host by scripts/install.sh, runs every command in the
+# image, each with the account and the volumes it needs (docs/docker.md):
+#
+#   console          as the console account (lockssh), in a container of its
+#                    own per project (lockssh-console-<n>), confined (no
+#                    capability, read-only root, bounded processes and
+#                    memory), with the socket and home volumes
+#   init             as you, with your home: it writes your agents' files
+#   profile add      as you, so that the profile it writes is yours
+#   mcp, doctor and the client commands (status, run, request, logout)
+#                    as the agent account (agent), with the socket volume of
+#                    the workspace's lockssh lock that `lox up` runs (read
+#                    from .lockfamily/up.json and checked with Docker;
+#                    --instance NAME picks one of several): none without
+#                    lox up, but doctor then runs anyway and says why.
+#                    doctor checks .lockssh/ for your uid (LOCKSSH_HOST_UID),
+#                    as lox up copies it; doctor --fix starts as root for
+#                    its repairs, then becomes the agent account to check
+#   anything else    as the agent account, with no socket: help...
+#
+# The project (the nearest directory up from here that holds .lockssh/, or
+# this directory) is mounted at its own path. `lockssh update` updates this
+# launcher and its image; `lockssh version` prints both versions.
+#
+# Environment:
+#   LOCKSSH_IMAGE        image to run (default: the release image of this
+#                       launcher's version; `lockssh` for a launcher run
+#                       from a clone, the tag of `docker build -t lockssh .`)
+#   LOCKSSH_VAULT=1      the image with the vault CLI (credentials = "vault")
+#   LOCKSSH_DOCKER_ARGS  extra `docker run` arguments, split on spaces
+#                       (e.g. --network lockssh-net)
+#   LOCKSSH_READONLY_PROJECT=1  the console mounts the project read-only,
+#                       but for .lockssh/ (a project your agents write)
+#   LOCKSSH_CONSOLE_NAME the console's container name
+#   VAULT_ADDR, VAULT_NAMESPACE, VAULT_CACERT  passed to the console (the
+#                       file of VAULT_CACERT mounted read-only)
+set -eu
+
+# scripts/install.sh and lockssh update write the release version here,
+# and the digests of its images once their cosign signatures verify: the
+# launcher then runs the image by digest, never by a tag that could move.
+launcher_version=dev
+image_digest=
+vault_image_digest=
+
+repo="DavidGodefroid/lockssh"
+registry="ghcr.io/davidgodefroid/lockssh"
+
+say() { printf 'lockssh: %s\n' "$*" >&2; }
+die() { say "$*"; exit 1; }
+
+image="${LOCKSSH_IMAGE:-}"
+if [ -z "$image" ]; then
+	if [ "$launcher_version" = dev ]; then
+		image=lockssh
+	else
+		image="$registry:$launcher_version"
+	fi
+	if [ "$launcher_version" != dev ] && [ -n "$image_digest" ]; then
+		image="$registry@$image_digest"
+		[ "${LOCKSSH_VAULT:-0}" = 1 ] && image="$registry@$vault_image_digest"
+	elif [ "${LOCKSSH_VAULT:-0}" = 1 ]; then
+		case "$image" in
+		*:*) image="$image-vault" ;;
+		*) image="$image:vault" ;;
+		esac
+	fi
+fi
+
+# The project root: the nearest directory up from here that holds .lockssh/.
+here="$(pwd -P)"
+project="$here"
+d="$here"
+while :; do
+	if [ -d "$d/.lockssh" ]; then
+		project="$d"
+		break
+	fi
+	[ "$d" = / ] && break
+	d="$(dirname "$d")"
+done
+
+tty=-i
+if [ -t 0 ] && [ -t 1 ]; then tty=-it; fi
+
+# docker_run ARGS...: docker run with the project mounted at its own path,
+# from this directory, then ARGS (the account, the volumes, the image and
+# its command). LOCKSSH_DOCKER_ARGS go before ARGS.
+docker_run() {
+	command -v docker >/dev/null 2>&1 || die "docker is required: lockssh runs in Docker (docs/docker.md)"
+	mountable "$project"
+	mountable "$here"
+	# LOCKSSH_DOCKER_ARGS is split on spaces, never globbed.
+	set -f
+	# shellcheck disable=SC2086 # LOCKSSH_DOCKER_ARGS is split on purpose
+	exec docker run --rm -v "$project:$project${project_mode:-}" -w "$here" ${LOCKSSH_DOCKER_ARGS:-} "$@"
+}
+
+# mountable PATH: PATH can be a docker -v source and target, which ":"
+# separates.
+mountable() {
+	case "$1" in
+	*:*) die "$1 holds a \":\", which docker -v cannot mount: move or rename it" ;;
+	esac
+}
+
+# check_lockssh_dir: $lockssh_dir is a directory of its own, no symbolic
+# link on its path (its physical path is itself).
+check_lockssh_dir() {
+	if [ -L "$lockssh_dir" ] || [ ! -d "$lockssh_dir" ] ||
+		[ "$(cd "$lockssh_dir" 2>/dev/null && pwd -P)" != "$lockssh_dir" ]; then
+		die "$lockssh_dir is not a directory: the console writes there"
+	fi
+}
+
+# has_flag FLAG ARGS...: whether ARGS hold FLAG or FLAG=...
+has_flag() {
+	f=$1
+	shift
+	for a in "$@"; do
+		case "$a" in "$f" | "$f"=*) return 0 ;; esac
+	done
+	return 1
+}
+
+# check_tag TAG: TAG is a release tag (it goes into URLs and into the
+# launcher's text).
+check_tag() {
+	printf '%s\n' "$1" | grep -Eqx 'v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?' ||
+		die "invalid version $1: a release tag, vX.Y.Z"
+}
+
+# verified_digest TAG: the digest of the release image registry:TAG, once
+# cosign verifies its signature by the release workflow; empty when it does
+# not verify.
+verified_digest() {
+	cosign verify --certificate-identity "$identity" \
+		--certificate-oidc-issuer https://token.actions.githubusercontent.com \
+		"$registry:$1" 2>/dev/null |
+		sed -n 's/.*"docker-manifest-digest":"\(sha256:[0-9a-f]\{64\}\)".*/\1/p' | sed -n 1p
+}
+
+# update [vX.Y.Z]: replace this launcher with a release's (the cosign
+# signature of checksums.txt and the archive's checksum checked, as
+# scripts/install.sh does), then pull that release's image.
+update() {
+	if [ -n "${1:-}" ]; then
+		case "$1" in v*) check_tag "$1" ;; *) check_tag "v$1" ;; esac
+	fi
+	if command -v curl >/dev/null 2>&1; then
+		fetch() { curl -fsSL -o "$2" "$1"; }
+		latest() { curl -fsSLI -o /dev/null -w '%{url_effective}' "https://github.com/$repo/releases/latest"; }
+	elif command -v wget >/dev/null 2>&1; then
+		fetch() { wget -q -O "$2" "$1"; }
+		latest() { wget -q -S --spider "https://github.com/$repo/releases/latest" 2>&1 | sed -n 's/^ *[Ll]ocation: *//p' | tail -n 1 | tr -d '\r'; }
+	else
+		die "curl or wget is required"
+	fi
+	case "$(uname -s)" in
+	Linux) os=linux ;;
+	Darwin) os=darwin ;;
+	*) die "unsupported OS $(uname -s): Linux and macOS only (WSL 2 on Windows)" ;;
+	esac
+	case "$(uname -m)" in
+	x86_64 | amd64) arch=amd64 ;;
+	aarch64 | arm64) arch=arm64 ;;
+	*) die "unsupported architecture $(uname -m): amd64 and arm64 only" ;;
+	esac
+
+	tag="${1:-${LOCKSSH_VERSION:-}}"
+	if [ -z "$tag" ]; then
+		tag="$(latest)"
+		tag="${tag##*/}"
+		case "$tag" in
+		v[0-9]*) ;;
+		*) die "no published release found; name one: lockssh update vX.Y.Z" ;;
+		esac
+	fi
+	case "$tag" in v*) ;; *) tag="v$tag" ;; esac
+	check_tag "$tag"
+	version="${tag#v}"
+	# The release workflow run for this very tag, as scripts/install.sh
+	# checks it: a tag moved to an older release's signed files (archive or
+	# image) does not verify.
+	identity="https://github.com/$repo/.github/workflows/release.yml@refs/tags/$tag"
+	if [ "$version" = "$launcher_version" ]; then
+		say "the launcher is already $tag"
+	else
+		self="$(command -v "$0" 2>/dev/null || printf '%s' "$0")"
+		archive="lockssh_${version}_${os}_${arch}.tar.gz"
+		base="https://github.com/$repo/releases/download/$tag"
+		tmp="$(mktemp -d)"
+		trap 'rm -rf "$tmp"' EXIT INT TERM
+		say "downloading $archive ($tag)"
+		fetch "$base/$archive" "$tmp/$archive" || die "download failed: $base/$archive"
+		fetch "$base/checksums.txt" "$tmp/checksums.txt" || die "download failed: checksums.txt"
+		if command -v cosign >/dev/null 2>&1; then
+			fetch "$base/checksums.txt.sigstore.json" "$tmp/checksums.txt.sigstore.json" ||
+				die "download failed: checksums.txt.sigstore.json"
+			cosign verify-blob --bundle "$tmp/checksums.txt.sigstore.json" \
+				--certificate-identity "$identity" \
+				--certificate-oidc-issuer https://token.actions.githubusercontent.com \
+				"$tmp/checksums.txt" >/dev/null 2>&1 || die "cosign: signature of checksums.txt does not verify"
+			say "cosign: checksums.txt signature verified"
+		elif [ "${LOCKSSH_SKIP_COSIGN:-0}" = 1 ]; then
+			say "WARNING: LOCKSSH_SKIP_COSIGN=1: the signature of checksums.txt is NOT checked; the checksum only detects corruption"
+		else
+			die "cosign is required to check the release's signature (https://docs.sigstore.dev/cosign/system_config/installation/); LOCKSSH_SKIP_COSIGN=1 updates without it"
+		fi
+		want="$(awk -v f="$archive" '$2 == f { print $1 }' "$tmp/checksums.txt")"
+		[ -n "$want" ] || die "$archive is not listed in checksums.txt"
+		if command -v sha256sum >/dev/null 2>&1; then
+			got="$(sha256sum "$tmp/$archive" | awk '{ print $1 }')"
+		else
+			got="$(shasum -a 256 "$tmp/$archive" | awk '{ print $1 }')"
+		fi
+		[ "$want" = "$got" ] || die "checksum mismatch for $archive"
+		tar -xzf "$tmp/$archive" -C "$tmp" scripts/lockssh 2>/dev/null ||
+			die "$archive holds no launcher (scripts/lockssh): $tag predates the Docker launcher"
+		digest= vdigest=
+		if command -v cosign >/dev/null 2>&1; then
+			digest="$(verified_digest "$version")"
+			vdigest="$(verified_digest "$version-vault")"
+			[ -n "$digest" ] && [ -n "$vdigest" ] && [ "$digest" != "$vdigest" ] ||
+				die "cosign: the signature of $registry:$version (and -vault) does not verify, or the image is not published yet"
+			say "cosign: image $registry:$version verified ($digest)"
+		else
+			say "WARNING: LOCKSSH_SKIP_COSIGN=1: the image is NOT verified and runs by its tag"
+		fi
+		sed -e "s/^launcher_version=dev\$/launcher_version=$version/" \
+			-e "s/^image_digest=\$/image_digest=$digest/" \
+			-e "s/^vault_image_digest=\$/vault_image_digest=$vdigest/" \
+			"$tmp/scripts/lockssh" >"$tmp/launcher"
+		grep -qx "launcher_version=$version" "$tmp/launcher" || die "the launcher of $tag does not take its version"
+		if [ -w "$self" ]; then
+			install -m 0755 "$tmp/launcher" "$self"
+		else
+			command -v sudo >/dev/null 2>&1 || die "$self is not writable and sudo is missing"
+			say "replacing $self with sudo"
+			sudo install -m 0755 "$tmp/launcher" "$self"
+		fi
+		say "launcher updated to $tag ($self)"
+		registry_image="$registry:$version"
+		[ -n "$digest" ] && registry_image="$registry@$digest"
+		[ "${LOCKSSH_VAULT:-0}" = 1 ] && registry_image="$registry:$version-vault"
+		[ "${LOCKSSH_VAULT:-0}" = 1 ] && [ -n "$vdigest" ] && registry_image="$registry@$vdigest"
+		[ -n "${LOCKSSH_IMAGE:-}" ] && say "LOCKSSH_IMAGE is set ($LOCKSSH_IMAGE): it still overrides $registry_image"
+		image="$registry_image"
+	fi
+	command -v docker >/dev/null 2>&1 || die "docker is required: lockssh runs in Docker (docs/docker.md)"
+	say "pulling $image"
+	exec docker pull "$image"
+}
+
+# Locks started by `lox up` (lockhub's docs/lox-up.md): `lox up` runs each
+# lock's console under compose, with its socket in the volume
+# lockfamily-<sha256 of the workspace, 8 hex>_<instance>-run, and names it
+# in <workspace>/.lockfamily/up.json. The agent commands mount that volume
+# read-only on /run/lockssh (connecting needs no write), never a fixed one:
+# the consoles run hub-attached only, started by `lox up`. The checks are
+# those of lea, which mounts the same volumes for its agents: up.json is
+# the user's own regular file (no link) that no one else can write, in a
+# .lockfamily of the same kind, of this very workspace; then Docker must
+# confirm the volume: lox up's labels (project, role socket, instance,
+# type, workspace), and every container that mounts it is lox up's (run
+# by compose from lox up's own state directory) or mounts it read-only.
+# These checks catch mistakes and files others can write; an agent that
+# runs as you with Docker access gets past any of them (docs/launcher.md).
+# up.json only names the instance:
+# what is mounted is what Docker's labels prove, read as JSON, compared
+# whole; anything else fails closed.
+
+# json_safe S: S holds nothing JSON escapes (a quote, a backslash, a
+# control character, U+2028, U+2029): "S" is then its JSON encoding.
+json_safe() {
+	case "$1" in *'"'* | *'\'* | *"$(printf '\342\200\250')"* | *"$(printf '\342\200\251')"*) return 1 ;; esac
+	[ "$(printf '%s' "$1" | LC_ALL=C tr -d '\001-\037')" = "$1" ]
+}
+
+# private PATH: PATH is no link, is the user's, and neither its group nor
+# others may write it.
+private() {
+	[ ! -L "$1" ] && [ "$(ls -nd "$1" | awk '{ print $3 }')" = "$(id -u)" ] &&
+		[ -z "$(find "$1" -prune \( -perm -0020 -o -perm -0002 \) -print)" ]
+}
+
+# sha8 S: the first 8 hex digits of the sha256 of S (lox up's project).
+sha8() {
+	if command -v sha256sum >/dev/null 2>&1; then
+		printf '%s' "$1" | sha256sum
+	else
+		printf '%s' "$1" | shasum -a 256
+	fi | awk '{ print substr($1, 1, 8) }'
+}
+
+# lockup_parse < up.json: lox up's state (version 1, written by Go's
+# json.MarshalIndent with a two-space indent): a line Pproject, a line
+# Wworkspace, then a line Lname socket_volume client_gid per lock of type
+# lockssh. Fails on anything else, or on a value it would have to unescape.
+lockup_parse() {
+	awk -v want=lockssh '
+	function str(v) {
+		if (v !~ /^"[^"\\]*"$/ || v ~ /[\001-\037]/) { bad = 1; return "" }
+		return substr(v, 2, length(v) - 2)
+	}
+	{ line = $0 }
+	NR == 1 { if (line != "{") bad = 1; next }
+	{ last = line; match(line, /^ */); ind = RLENGTH; rest = substr(line, ind + 1) }
+	rest == "}" || rest == "}," {
+		if (inlocks && ind == 4) cur = ""
+		else if (inlocks && ind == 2) inlocks = 0
+		next
+	}
+	rest !~ /^"[^"\\]*": / { next }
+	{
+		k = substr(rest, 2, index(rest, "\":") - 2)
+		v = substr(rest, length(k) + 5)
+		sub(/,$/, "", v)
+	}
+	!inlocks && ind == 2 {
+		if (k == "version") version = v
+		else if (k == "project") project = str(v)
+		else if (k == "workspace") workspace = str(v)
+		else if (k == "locks") { if (v == "{") inlocks = 1; else if (v != "{}") bad = 1; locks = 1 }
+		next
+	}
+	inlocks && ind == 4 {
+		if (v != "{" || (k in seen)) bad = 1
+		seen[k] = 1; cur = k; n++; name[n] = k
+		next
+	}
+	inlocks && ind == 6 && cur != "" {
+		if (k == "type" || k == "socket_volume" || k == "client_gid") f[cur, k] = str(v)
+	}
+	END {
+		if (bad || last != "}" || inlocks || !locks || version != "1") exit 1
+		print "P" project
+		print "W" workspace
+		for (i = 1; i <= n; i++) {
+			c = name[i]
+			if (f[c, "type"] != want) continue
+			if (c !~ /^[a-z0-9][a-z0-9-]*$/ || length(c) > 63 || f[c, "socket_volume"] !~ /^[a-z0-9][a-z0-9_.-]*$/ || f[c, "client_gid"] !~ /^[0-9]*$/) exit 1
+			print "L" c " " f[c, "socket_volume"] " " f[c, "client_gid"]
+		}
+	}'
+}
+
+# lockup_volume [INSTANCE]: the socket volume of the lockssh lock (INSTANCE,
+# the only one without it) that `lox up` runs for the workspace of this
+# directory, in $lockup_vol; when there is none the agents can trust, why,
+# with what to do, in $lockup_why.
+lockup_volume() {
+	lockup_vol= lockup_why=
+	lu_inst=${1:-}
+	# The workspace: the nearest directory up from here whose .lockfamily
+	# holds up.json (a sub-project's own .lockfamily may hold none).
+	lu_ws=
+	lu_d=$here
+	while :; do
+		if [ -e "$lu_d/.lockfamily/up.json" ] || [ -L "$lu_d/.lockfamily/up.json" ] || [ -L "$lu_d/.lockfamily" ]; then
+			lu_ws=$lu_d
+			break
+		fi
+		[ "$lu_d" = / ] && break
+		lu_d=$(dirname "$lu_d")
+	done
+	if [ -z "$lu_ws" ]; then
+		lockup_why="no .lockfamily/up.json in $here or above it: start the workspace's locks with \`lox up\` (lockhub), then run lockssh from the workspace"
+		return 1
+	fi
+	lu_lf=$lu_ws/.lockfamily
+	lu_f=$lu_lf/up.json
+	if [ -L "$lu_lf" ] || [ ! -d "$lu_lf" ]; then
+		lockup_why="$lu_lf is not a directory (a link?): it is not lox up's; run \`lox up\`"
+		return 1
+	fi
+	if ! private "$lu_lf"; then
+		lockup_why="$lu_lf is not yours, or others than you may write it: lockssh trusts none of it (chmod go-w it, then run \`lox up\`)"
+		return 1
+	fi
+	if [ -L "$lu_f" ] || [ ! -f "$lu_f" ]; then
+		lockup_why="$lu_f is not a regular file (a link?): it is not lox up's; run \`lox up\`"
+		return 1
+	fi
+	if ! private "$lu_f"; then
+		lockup_why="$lu_f is not yours, or others than you may write it: lockssh trusts none of it; run \`lox up\`"
+		return 1
+	fi
+	if [ "$(wc -c <"$lu_f")" -gt 1048576 ]; then
+		lockup_why="$lu_f is larger than 1 MiB: it is not lox up's; run \`lox up\`"
+		return 1
+	fi
+	lu_ino=$(ls -di "$lu_f")
+	if ! lu_state=$(lockup_parse <"$lu_f") || [ -L "$lu_f" ] || [ "$(ls -di "$lu_f")" != "$lu_ino" ]; then
+		lockup_why="$lu_f is not lox up's state (version 1): run \`lox up\`"
+		return 1
+	fi
+	lu_project= lu_wsf= lu_locks=
+	while IFS= read -r lu_line; do
+		case "$lu_line" in
+		P*) lu_project=${lu_line#P} ;;
+		W*) lu_wsf=${lu_line#W} ;;
+		L*) lu_locks="$lu_locks${lu_line#L}
+" ;;
+		esac
+	done <<EOF_STATE
+$lu_state
+EOF_STATE
+	lu_want="lockfamily-$(sha8 "$lu_ws")"
+	if [ "$lu_project" != "$lu_want" ] || [ "$lu_wsf" != "$lu_ws" ]; then
+		lockup_why="$lu_f: project $lu_project of $lu_wsf, not this workspace's ($lu_want of $lu_ws): run \`lox up\` in $lu_ws"
+		return 1
+	fi
+	if ! json_safe "$lu_ws"; then
+		lockup_why="the workspace's path $lu_ws holds a quote, a backslash or a control character: lockssh cannot check lox up's labels; move or rename it"
+		return 1
+	fi
+	lu_names=$(printf '%s' "$lu_locks" | awk '{ print $1 }' | sort | tr '\n' ' ')
+	lu_names=${lu_names% }
+	if [ -n "$lu_inst" ]; then
+		case "$lu_inst" in
+		*[!a-z0-9-]* | -*)
+			lockup_why="--instance: not an instance name (lowercase letters, digits and -)"
+			return 1
+			;;
+		esac
+		lu_sel=$(printf '%s' "$lu_locks" | awk -v n="$lu_inst" '$1 == n')
+		if [ -z "$lu_sel" ]; then
+			lockup_why="lox up runs no lockssh lock $lu_inst in $lu_ws (its lockssh locks: ${lu_names:-none}): name one with --instance, or add it (lox add lockssh $lu_inst) and run \`lox up\`"
+			return 1
+		fi
+	else
+		case "$lu_names" in
+		"")
+			lockup_why="lox up runs no lockssh lock in $lu_ws: add one (lox add lockssh <name>), then run \`lox up\`"
+			return 1
+			;;
+		*" "*)
+			lockup_why="lox up runs several lockssh locks in $lu_ws ($lu_names): name one with --instance NAME"
+			return 1
+			;;
+		esac
+		lu_sel=$lu_locks
+	fi
+	# shellcheck disable=SC2086 # name, volume and group: checked words
+	set -- $lu_sel
+	lu_name=$1 lu_sock=$2 lu_gid=${3:-}
+	lu_vol=${lu_project}_$lu_name-run
+	if [ "$lu_sock" != "$lu_vol" ]; then
+		lockup_why="$lu_f: lock $lu_name: socket volume $lu_sock is not lox up's $lu_vol: run \`lox up\`"
+		return 1
+	fi
+	if [ -n "$lu_gid" ] && [ "$lu_gid" != 10040 ]; then
+		lockup_why="lock $lu_name: clients group $lu_gid, this image's is 10040: update lockssh (lockssh update) or the lock's image"
+		return 1
+	fi
+	lu_got=$(docker volume inspect --format '{{json (index .Labels "com.docker.compose.project")}}
+{{json (index .Labels "com.docker.compose.volume")}}
+{{json (index .Labels "dev.lockfamily.role")}}
+{{json (index .Labels "dev.lockfamily.instance")}}
+{{json (index .Labels "dev.lockfamily.type")}}
+{{json (index .Labels "dev.lockfamily.workspace")}}' "$lu_vol" 2>/dev/null) || {
+		lockup_why="lock $lu_name: no volume $lu_vol: run \`lox up\`"
+		return 1
+	}
+	if [ "$lu_got" != "\"$lu_project\"
+\"$lu_name-run\"
+\"socket\"
+\"$lu_name\"
+\"lockssh\"
+\"$lu_ws\"" ]; then
+		lockup_why="lock $lu_name: volume $lu_vol is not lox up's socket volume of it (its labels): lockssh trusts none of it; run \`lox up\`"
+		return 1
+	fi
+	# Every container that mounts the volume, running or not, must be lox
+	# up's own or unable to serve a socket there. lox up's: compose ran it
+	# from lox up's state directory, with the file on stdin or that
+	# directory's compose.yaml (compose's project label alone is anyone's: a
+	# compose file written in the workspace, run by you, would serve the
+	# socket from an image of its own). Any other container, compose's or
+	# not, must mount the volume read-only (an agent's, as this one): with
+	# a read-write mount it could listen on the socket's path.
+	lu_state_dir=$(printf '%s' "${XDG_STATE_HOME:-${HOME:-}/.local/state}/lockfamily/$lu_project" | sed -e 's#//*#/#g')
+	if ! json_safe "$lu_state_dir"; then
+		lockup_why="lox up's state directory $lu_state_dir holds a quote, a backslash or a control character: lockssh cannot check lox up's containers"
+		return 1
+	fi
+	lu_ids=$(docker ps -a --no-trunc --filter "volume=$lu_vol" --format '{{.ID}}' 2>/dev/null) || {
+		lockup_why="lock $lu_name: cannot list the containers of $lu_vol (docker ps)"
+		return 1
+	}
+	if [ -n "$lu_ids" ] && printf '%s\n' "$lu_ids" | grep -vqx '[0-9a-f]\{64\}'; then
+		lockup_why="lock $lu_name: cannot read the containers of $lu_vol (docker ps)"
+		return 1
+	fi
+	for lu_id in $lu_ids; do
+		# Compose's project, working directory and files, as JSON; then
+		# rw or ro for each mount of the volume (its name: checked
+		# characters).
+		lu_c=$(docker inspect --type container -f '{{json (index .Config.Labels "com.docker.compose.project")}}
+{{json (index .Config.Labels "com.docker.compose.project.working_dir")}}
+{{json (index .Config.Labels "com.docker.compose.project.config_files")}}
+{{range .Mounts}}{{if eq .Name "'"$lu_vol"'"}}{{if .RW}}rw {{else}}ro {{end}}{{end}}{{end}}' "$lu_id" 2>/dev/null) || {
+			lockup_why="lock $lu_name: cannot read the containers of $lu_vol (docker inspect $lu_id)"
+			return 1
+		}
+		lu_rw=$(printf '%s\n' "$lu_c" | sed -n 4p)
+		lu_c=$(printf '%s\n' "$lu_c" | sed -n 1,3p)
+		if [ "$lu_c" = "\"$lu_project\"
+\"$lu_state_dir\"
+\"-\"" ] || [ "$lu_c" = "\"$lu_project\"
+\"$lu_state_dir\"
+\"$lu_state_dir/compose.yaml\"" ]; then
+			continue # lox up's
+		fi
+		# Read-only mounts only (none listed: not one docker shows by name).
+		case " $lu_rw" in
+		" " | *" rw "*)
+			lockup_why="lock $lu_name: volume $lu_vol is mounted read-write by container $lu_id, which lox up did not start (not compose run from $lu_state_dir): lockssh trusts none of its socket; remove that container, then run \`lox up\`"
+			return 1
+			;;
+		esac
+	done
+	lockup_vol=$lu_vol
+}
+lockup_vol= lockup_why=
+
+# --instance NAME (or --instance=NAME): the launcher's own option of the
+# agent commands, which of lox up's lockssh locks when the workspace has
+# several. Taken out of the command line ("--" ends the options).
+instance=
+case "${1:-}" in
+mcp | doctor | status | run | request | logout)
+	n=$#
+	take=
+	done_opts=
+	for a in "$@"; do
+		if [ -n "$done_opts" ]; then
+			set -- "$@" "$a"
+			continue
+		fi
+		if [ -n "$take" ]; then
+			instance=$a
+			take=
+			continue
+		fi
+		case "$a" in
+		--) done_opts=1 ;;
+		--instance)
+			take=1
+			continue
+			;;
+		--instance=*)
+			instance=${a#--instance=}
+			continue
+			;;
+		esac
+		set -- "$@" "$a"
+	done
+	shift "$n"
+	[ -z "$take" ] || die "--instance: name the lock (lox up's instance)"
+	;;
+esac
+
+# lockup_mount: lox up's socket volume of this workspace's lockssh lock,
+# as the agent commands mount it, or the reason there is none (exit 2, as
+# a client finding no console).
+lockup_mount() {
+	command -v docker >/dev/null 2>&1 || die "docker is required: lockssh runs in Docker (docs/docker.md)"
+	mountable "$project"
+	mountable "$here"
+	lockup_volume "$instance" || {
+		say "$lockup_why"
+		exit 2
+	}
+	mount="type=volume,src=$lockup_vol,dst=/run/lockssh,readonly"
+}
+
+cmd="${1:-}"
+case "$cmd" in
+update)
+	shift
+	update "$@"
+	;;
+version | --version)
+	printf 'lockssh launcher %s (image %s)\n' "$launcher_version" "$image"
+	docker_run "$image" version
+	;;
+console)
+	shift
+	command -v docker >/dev/null 2>&1 || die "docker is required: lockssh runs in Docker (docs/docker.md)"
+	has_flag --project "$@" || set -- --project "$project" "$@"
+	# LOCKSSH_READONLY_PROJECT=1: the console reads the project and writes
+	# only .lockssh/ (its PII rules), for a project your agents write. A bind
+	# mount follows a symbolic link, so .lockssh must be a directory.
+	# Checked again right before docker run: what is left is the instant
+	# between that check and docker's own mount.
+	lockssh_dir=
+	if [ "${LOCKSSH_READONLY_PROJECT:-0}" = 1 ]; then
+		lockssh_dir="$project/.lockssh"
+		check_lockssh_dir
+		project_mode=:ro
+	fi
+	# VAULT_CACERT: the file the vault CLI checks Vault's certificate
+	# against, mounted read-only at its own path.
+	cacert=
+	if [ -n "${VAULT_CACERT:-}" ]; then
+		case "$VAULT_CACERT" in /*) cacert=$VAULT_CACERT ;; *) cacert="$here/$VAULT_CACERT" ;; esac
+		[ -f "$cacert" ] || die "VAULT_CACERT: no file $cacert"
+		mountable "$cacert"
+	fi
+	# One console container per project, so that two can run.
+	name="${LOCKSSH_CONSOLE_NAME:-lockssh-console-$(printf '%s' "$project" | cksum | awk '{ print $1 }')}"
+	# A console that ended without --rm keeps the name: a stopped one is only in the way.
+	if [ "$(docker inspect -f '{{.State.Running}}' "$name" 2>/dev/null)" = false ]; then
+		docker rm "$name" >/dev/null
+	fi
+	# No log driver: with a terminal, docker's json-file log would keep every
+	# screen of the console (results you chose to show) for anyone who runs
+	# docker logs. host.docker.internal is this machine, as profile add
+	# offers it. The console holds the credentials: no capability, no
+	# privilege gain, a read-only root with a small /tmp, bounded processes
+	# and memory.
+	set -- --name "$name" --log-driver none --user lockssh \
+		--cap-drop ALL --security-opt no-new-privileges --read-only \
+		--tmpfs /tmp:rw,nosuid,nodev,noexec,size=64m --pids-limit 256 --memory 1g \
+		--add-host=host.docker.internal:host-gateway -e VAULT_ADDR -e VAULT_NAMESPACE \
+		-v lockssh-run:/run/lockssh -v lockssh-home:/home/lockssh \
+		${lockssh_dir:+-v} ${lockssh_dir:+"$lockssh_dir:$lockssh_dir"} \
+		${cacert:+-v} ${cacert:+"$cacert:$cacert:ro"} ${cacert:+-e} ${cacert:+"VAULT_CACERT=$cacert"} \
+		"$image" console "$@"
+	[ -z "$lockssh_dir" ] || check_lockssh_dir
+	docker_run "$tty" "$@"
+	;;
+init)
+	# init also writes the agents' own files in your home (~/.codex, ...).
+	mountable "$HOME"
+	docker_run "$tty" --user "$(id -u):$(id -g)" -e HOME="$HOME" -v "$HOME:$HOME" "$image" "$@"
+	;;
+profile)
+	docker_run "$tty" --user "$(id -u):$(id -g)" -e HOME=/tmp "$image" "$@"
+	;;
+doctor)
+	# .lockssh/ must be yours, as `lox up` copies it: doctor learns your uid
+	# here (in the image it never runs as you). --fix starts as root, for
+	# the repairs that need it (giving back to you what an older doctor
+	# --fix gave the console account), then the image becomes the agent
+	# account before any check: the checks run as the agent commands do.
+	set -- -e "LOCKSSH_HOST_UID=$(id -u)" "$image" "$@"
+	if has_flag --fix "$@"; then
+		set -- --user 0 "$@"
+	fi
+	# The checks run without lox up's socket too: then they say so.
+	if command -v docker >/dev/null 2>&1 && lockup_volume "$instance"; then
+		docker_run "$tty" --mount "type=volume,src=$lockup_vol,dst=/run/lockssh,readonly" "$@"
+	fi
+	[ -z "$lockup_why" ] || say "$lockup_why"
+	docker_run "$tty" "$@"
+	;;
+mcp)
+	# The agent speaks MCP on stdin and stdout: no terminal.
+	lockup_mount
+	docker_run -i --mount "$mount" "$image" "$@"
+	;;
+status | run | request | logout)
+	lockup_mount
+	docker_run "$tty" --mount "$mount" "$image" "$@"
+	;;
+*)
+	docker_run "$tty" "$image" "$@"
+	;;
+esac

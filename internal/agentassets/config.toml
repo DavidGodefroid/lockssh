@@ -1,0 +1,21 @@
+# lockssh profiles of this project: one SSH host each. No secret goes
+# here: the console reads the key file (in its own account), and asks for a
+# passphrase or a password, reads it from the OS keychain or from Vault.
+#
+# [profiles.dev]
+# host        = "web1.dev.example.com"
+# user        = "deploy"
+# auth        = "key"                         # key | password
+# key         = "~/.ssh/id_ed25519"           # in the console account
+# credentials = "none"                        # none (unencrypted key) | ask | keychain | vault
+# allow       = ["uptime", "df -h", "systemctl status *", "journalctl -u * -n * --no-pager"]
+# exec        = false                         # true: other commands may be asked, each decided by the human
+#
+# [profiles.prod]
+# host        = "web1.example.com"
+# user        = "lockssh-ro"
+# key         = "~/.ssh/lockssh_prod"
+# credentials = "ask"
+# known_hosts = "~/.ssh/known_hosts.prod"     # a file you checked: an unknown key is refused
+# allow       = ["uptime", "systemctl status *"]
+# production  = true
