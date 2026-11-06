@@ -7,9 +7,9 @@
 
 <p align="center">
   <a href="https://github.com/DavidGodefroid/lockssh/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/DavidGodefroid/lockssh/actions/workflows/ci.yml/badge.svg"></a>
-  <a href="https://github.com/DavidGodefroid/lockssh/releases"><img alt="Latest release" src="https://img.shields.io/github/v/release/DavidGodefroid/lockssh?include_prereleases&color=0EA5E9"></a>
-  <a href="LICENSE"><img alt="Apache 2.0" src="https://img.shields.io/badge/license-Apache%202.0-14B8A6"></a>
-  <img alt="Go 1.26+" src="https://img.shields.io/badge/go-1.26%2B-00ADD8?logo=go&logoColor=white">
+  <a href="https://github.com/DavidGodefroid/lockssh/releases"><img alt="Latest release" src="https://img.shields.io/github/v/release/DavidGodefroid/lockssh?include_prereleases&sort=semver&label=release&color=1f4a9c"></a>
+  <a href="LICENSE"><img alt="License: Apache 2.0" src="https://img.shields.io/badge/license-Apache%202.0-575146"></a>
+  <a href="go.mod"><img alt="Go version" src="https://img.shields.io/github/go-mod/go-version/DavidGodefroid/lockssh?color=575146&logo=go&logoColor=white"></a>
 </p>
 
 <p align="center">
