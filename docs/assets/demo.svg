@@ -1,0 +1,149 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 660" width="1200" height="660" role="img" aria-label="lockssh: Claude Code checks nginx on a server through lockssh. The allow-listed status and log commands run at once, with the client's address masked; the restart matches no allow rule, so lox run asks the human, who types y, and the agent runs it once. The SSH key stays in the lockssh console.">
+<title>lockssh: your AI runs the command, you hold the key</title>
+<style>@keyframes k1{0.00%{opacity:0.00} 1.88%{opacity:0.00} 3.12%{opacity:1.00} 96.25%{opacity:1.00} 97.50%{opacity:0.00} 100.00%{opacity:0.00}}
+.k1{animation:k1 16.0s linear infinite}
+@keyframes k2{0.00%{opacity:0.00} 6.25%{opacity:0.00} 7.50%{opacity:1.00} 96.25%{opacity:1.00} 97.50%{opacity:0.00} 100.00%{opacity:0.00}}
+.k2{animation:k2 16.0s linear infinite}
+@keyframes k3{0.00%{opacity:0.00} 10.62%{opacity:0.00} 11.88%{opacity:1.00} 96.25%{opacity:1.00} 97.50%{opacity:0.00} 100.00%{opacity:0.00}}
+.k3{animation:k3 16.0s linear infinite}
+@keyframes k4{0.00%{opacity:0.00} 13.75%{opacity:0.00} 15.00%{opacity:1.00} 96.25%{opacity:1.00} 97.50%{opacity:0.00} 100.00%{opacity:0.00}}
+.k4{animation:k4 16.0s linear infinite}
+@keyframes k5{0.00%{opacity:0.00} 13.75%{opacity:0.00} 15.00%{opacity:1.00} 96.25%{opacity:1.00} 97.50%{opacity:0.00} 100.00%{opacity:0.00}}
+.k5{animation:k5 16.0s linear infinite}
+@keyframes k6{0.00%{opacity:0.00} 18.12%{opacity:0.00} 19.38%{opacity:1.00} 96.25%{opacity:1.00} 97.50%{opacity:0.00} 100.00%{opacity:0.00}}
+.k6{animation:k6 16.0s linear infinite}
+@keyframes k7{0.00%{opacity:0.00} 18.12%{opacity:0.00} 19.38%{opacity:1.00} 96.25%{opacity:1.00} 97.50%{opacity:0.00} 100.00%{opacity:0.00}}
+.k7{animation:k7 16.0s linear infinite}
+@keyframes k8{0.00%{opacity:0.00} 23.12%{opacity:0.00} 24.38%{opacity:1.00} 96.25%{opacity:1.00} 97.50%{opacity:0.00} 100.00%{opacity:0.00}}
+.k8{animation:k8 16.0s linear infinite}
+@keyframes k9{0.00%{opacity:0.00} 23.12%{opacity:0.00} 24.38%{opacity:1.00} 96.25%{opacity:1.00} 97.50%{opacity:0.00} 100.00%{opacity:0.00}}
+.k9{animation:k9 16.0s linear infinite}
+@keyframes k10{0.00%{opacity:0.00} 27.50%{opacity:0.00} 28.75%{opacity:1.00} 96.25%{opacity:1.00} 97.50%{opacity:0.00} 100.00%{opacity:0.00}}
+.k10{animation:k10 16.0s linear infinite}
+@keyframes k11{0.00%{opacity:0.00} 33.12%{opacity:0.00} 34.38%{opacity:1.00} 96.25%{opacity:1.00} 97.50%{opacity:0.00} 100.00%{opacity:0.00}}
+.k11{animation:k11 16.0s linear infinite}
+@keyframes k12{0.00%{opacity:0.00} 55.62%{opacity:0.00} 56.88%{opacity:1.00} 96.25%{opacity:1.00} 97.50%{opacity:0.00} 100.00%{opacity:0.00}}
+.k12{animation:k12 16.0s linear infinite}
+@keyframes k13{0.00%{opacity:0.00} 55.62%{opacity:0.00} 56.88%{opacity:1.00} 96.25%{opacity:1.00} 97.50%{opacity:0.00} 100.00%{opacity:0.00}}
+.k13{animation:k13 16.0s linear infinite}
+@keyframes k14{0.00%{opacity:0.00} 60.00%{opacity:0.00} 61.25%{opacity:1.00} 96.25%{opacity:1.00} 97.50%{opacity:0.00} 100.00%{opacity:0.00}}
+.k14{animation:k14 16.0s linear infinite}
+@keyframes k15{0.00%{opacity:0.00} 63.12%{opacity:0.00} 64.38%{opacity:1.00} 96.25%{opacity:1.00} 97.50%{opacity:0.00} 100.00%{opacity:0.00}}
+.k15{animation:k15 16.0s linear infinite}
+@keyframes k16{0.00%{opacity:0.00} 66.88%{opacity:0.00} 68.12%{opacity:1.00} 96.25%{opacity:1.00} 97.50%{opacity:0.00} 100.00%{opacity:0.00}}
+.k16{animation:k16 16.0s linear infinite}
+@keyframes k17{0.00%{opacity:0.00} 70.62%{opacity:0.00} 71.88%{opacity:1.00} 96.25%{opacity:1.00} 97.50%{opacity:0.00} 100.00%{opacity:0.00}}
+.k17{animation:k17 16.0s linear infinite}
+@keyframes k18{0.00%{opacity:0.00} 8.75%{opacity:0.00} 10.00%{opacity:1.00} 96.25%{opacity:1.00} 97.50%{opacity:0.00} 100.00%{opacity:0.00}}
+.k18{animation:k18 16.0s linear infinite}
+@keyframes k19{0.00%{opacity:0.00} 16.25%{opacity:0.00} 17.50%{opacity:1.00} 96.25%{opacity:1.00} 97.50%{opacity:0.00} 100.00%{opacity:0.00}}
+.k19{animation:k19 16.0s linear infinite}
+@keyframes k20{0.00%{opacity:0.00} 8.75%{opacity:0.00} 10.00%{opacity:1.00} 31.87%{opacity:1.00} 33.12%{opacity:0.00} 100.00%{opacity:0.00}}
+.k20{animation:k20 16.0s linear infinite}
+@keyframes k21{0.00%{opacity:0.00} 34.38%{opacity:0.00} 35.62%{opacity:1.00} 54.37%{opacity:1.00} 55.62%{opacity:0.00} 100.00%{opacity:0.00}}
+.k21{animation:k21 16.0s linear infinite}
+@keyframes k22{0.00%{opacity:0.00} 35.62%{opacity:0.00} 36.88%{opacity:1.00} 54.37%{opacity:1.00} 55.62%{opacity:0.00} 100.00%{opacity:0.00}}
+.k22{animation:k22 16.0s linear infinite}
+@keyframes k23{0.00%{opacity:0.00} 51.25%{opacity:0.00} 51.56%{opacity:1.00} 54.37%{opacity:1.00} 54.69%{opacity:0.00} 100.00%{opacity:0.00}}
+.k23{animation:k23 16.0s linear infinite}
+@keyframes k24{0.00%{opacity:0.00} 36.25%{opacity:0.00} 36.31%{opacity:1.00} 39.38%{opacity:1.00} 39.44%{opacity:0.00} 42.50%{opacity:0.00} 42.56%{opacity:1.00} 46.25%{opacity:1.00} 46.31%{opacity:0.00} 48.12%{opacity:0.00} 48.19%{opacity:1.00} 51.19%{opacity:1.00} 51.25%{opacity:0.00} 100.00%{opacity:0.00}}
+.k24{animation:k24 16.0s linear infinite}
+@keyframes k25{0.00%{opacity:0.00} 36.88%{opacity:0.00} 37.50%{opacity:1.00} 51.25%{opacity:1.00} 51.87%{opacity:0.00} 100.00%{opacity:0.00}}
+.k25{animation:k25 16.0s linear infinite}
+@keyframes k26{0.00%{opacity:0.00} 55.94%{opacity:0.00} 57.19%{opacity:1.00} 96.25%{opacity:1.00} 97.50%{opacity:0.00} 100.00%{opacity:0.00}}
+.k26{animation:k26 16.0s linear infinite}
+@keyframes k27{0.00%{opacity:0.00} 57.19%{opacity:0.00} 58.44%{opacity:1.00} 96.25%{opacity:1.00} 97.50%{opacity:0.00} 100.00%{opacity:0.00}}
+.k27{animation:k27 16.0s linear infinite}
+@keyframes k28{0.00%{opacity:0.00} 63.75%{opacity:0.00} 65.00%{opacity:1.00} 96.25%{opacity:1.00} 97.50%{opacity:0.00} 100.00%{opacity:0.00}}
+.k28{animation:k28 16.0s linear infinite}
+@keyframes k29{0.00%{transform:translate(520.0px,300.0px);opacity:0.00} 6.56%{transform:translate(520.0px,300.0px);opacity:0.00} 6.88%{transform:translate(520.0px,300.0px);opacity:1.00} 8.75%{transform:translate(640.0px,521.0px);opacity:1.00} 9.69%{transform:translate(640.0px,521.0px);opacity:0.00} 100.00%{transform:translate(640.0px,521.0px);opacity:0.00}}
+.k29{animation:k29 16.0s linear infinite}
+@keyframes k30{0.00%{transform:translate(640.0px,521.0px);opacity:0.00} 9.06%{transform:translate(640.0px,521.0px);opacity:0.00} 9.38%{transform:translate(640.0px,521.0px);opacity:1.00} 10.63%{transform:translate(520.0px,320.0px);opacity:1.00} 11.56%{transform:translate(520.0px,320.0px);opacity:0.00} 100.00%{transform:translate(520.0px,320.0px);opacity:0.00}}
+.k30{animation:k30 16.0s linear infinite}
+@keyframes k31{0.00%{transform:translate(520.0px,300.0px);opacity:0.00} 14.06%{transform:translate(520.0px,300.0px);opacity:0.00} 14.37%{transform:translate(520.0px,300.0px);opacity:1.00} 16.25%{transform:translate(640.0px,521.0px);opacity:1.00} 17.19%{transform:translate(640.0px,521.0px);opacity:0.00} 100.00%{transform:translate(640.0px,521.0px);opacity:0.00}}
+.k31{animation:k31 16.0s linear infinite}
+@keyframes k32{0.00%{transform:translate(640.0px,521.0px);opacity:0.00} 16.56%{transform:translate(640.0px,521.0px);opacity:0.00} 16.88%{transform:translate(640.0px,521.0px);opacity:1.00} 18.12%{transform:translate(520.0px,320.0px);opacity:1.00} 19.06%{transform:translate(520.0px,320.0px);opacity:0.00} 100.00%{transform:translate(520.0px,320.0px);opacity:0.00}}
+.k32{animation:k32 16.0s linear infinite}
+@keyframes k33{0.00%{transform:translate(520.0px,300.0px);opacity:0.00} 55.94%{transform:translate(520.0px,300.0px);opacity:0.00} 56.25%{transform:translate(520.0px,300.0px);opacity:1.00} 58.13%{transform:translate(640.0px,521.0px);opacity:1.00} 59.06%{transform:translate(640.0px,521.0px);opacity:0.00} 100.00%{transform:translate(640.0px,521.0px);opacity:0.00}}
+.k33{animation:k33 16.0s linear infinite}
+@keyframes k34{0.00%{transform:translate(640.0px,521.0px);opacity:0.00} 58.44%{transform:translate(640.0px,521.0px);opacity:0.00} 58.75%{transform:translate(640.0px,521.0px);opacity:1.00} 60.00%{transform:translate(520.0px,320.0px);opacity:1.00} 60.94%{transform:translate(520.0px,320.0px);opacity:0.00} 100.00%{transform:translate(520.0px,320.0px);opacity:0.00}}
+.k34{animation:k34 16.0s linear infinite}
+@keyframes k35{0.00%{transform:translate(520.0px,300.0px);opacity:0.00} 63.44%{transform:translate(520.0px,300.0px);opacity:0.00} 63.75%{transform:translate(520.0px,300.0px);opacity:1.00} 65.62%{transform:translate(640.0px,521.0px);opacity:1.00} 66.56%{transform:translate(640.0px,521.0px);opacity:0.00} 100.00%{transform:translate(640.0px,521.0px);opacity:0.00}}
+.k35{animation:k35 16.0s linear infinite}
+@keyframes k36{0.00%{transform:translate(640.0px,521.0px);opacity:0.00} 65.94%{transform:translate(640.0px,521.0px);opacity:0.00} 66.25%{transform:translate(640.0px,521.0px);opacity:1.00} 67.50%{transform:translate(520.0px,320.0px);opacity:1.00} 68.44%{transform:translate(520.0px,320.0px);opacity:0.00} 100.00%{transform:translate(520.0px,320.0px);opacity:0.00}}
+.k36{animation:k36 16.0s linear infinite}
+@keyframes k37{0.00%{transform:translate(520.0px,300.0px);opacity:0.00} 27.81%{transform:translate(520.0px,300.0px);opacity:0.00} 28.12%{transform:translate(520.0px,300.0px);opacity:1.00} 30.63%{transform:translate(760.0px,160.0px);opacity:1.00} 31.56%{transform:translate(760.0px,160.0px);opacity:0.00} 100.00%{transform:translate(760.0px,160.0px);opacity:0.00}}
+.k37{animation:k37 16.0s linear infinite}
+@keyframes k38{0.00%{opacity:0.00} 0.31%{opacity:0.00} 1.56%{opacity:1.00} 26.25%{opacity:1.00} 27.50%{opacity:0.00} 100.00%{opacity:0.00}}
+.k38{animation:k38 16.0s linear infinite}
+@keyframes k39{0.00%{opacity:0.00} 27.81%{opacity:0.00} 29.06%{opacity:1.00} 53.75%{opacity:1.00} 55.00%{opacity:0.00} 100.00%{opacity:0.00}}
+.k39{animation:k39 16.0s linear infinite}
+@keyframes k40{0.00%{opacity:0.00} 55.31%{opacity:0.00} 56.56%{opacity:1.00} 95.00%{opacity:1.00} 96.25%{opacity:0.00} 100.00%{opacity:0.00}}
+.k40{animation:k40 16.0s linear infinite}
+@media (prefers-reduced-motion: reduce){*{animation-delay:-14s!important;animation-play-state:paused!important}}</style>
+<rect width="1200" height="660" rx="24" fill="#0b1120"/>
+<rect x="24" y="32" width="540" height="536" rx="12" fill="#020617" stroke="#253047" stroke-width="1.5"/>
+<path d="M24 44 a12 12 0 0 1 12 -12 h516 a12 12 0 0 1 12 12 v18 h-540 z" fill="#0f172a"/>
+<circle cx="42" cy="47" r="5" fill="#f87171" fill-opacity=".7"/>
+<circle cx="58" cy="47" r="5" fill="#facc15" fill-opacity=".7"/>
+<circle cx="74" cy="47" r="5" fill="#4ade80" fill-opacity=".7"/>
+<text x="94" y="52" font-family="Inter,-apple-system,'Segoe UI',system-ui,Helvetica,Arial,'DejaVu Sans',sans-serif" font-size="12" fill="#94a3b8" font-weight="600" text-anchor="start" xml:space="preserve">✻ Claude Code</text>
+<text x="550" y="52" font-family="Inter,-apple-system,'Segoe UI',system-ui,Helvetica,Arial,'DejaVu Sans',sans-serif" font-size="12" fill="#64748b" font-weight="400" text-anchor="end" xml:space="preserve">account alice</text>
+<text x="40" y="90" class="k1" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,'DejaVu Sans Mono',monospace" font-size="12.5" xml:space="preserve"><tspan fill="#64748b">&gt; </tspan><tspan fill="#e2e8f0">is nginx healthy on web1? fix it if it isn't</tspan></text>
+<text x="40" y="109" class="k2" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,'DejaVu Sans Mono',monospace" font-size="12.5" xml:space="preserve"><tspan fill="#4ade80">● </tspan><tspan fill="#e2e8f0">lockssh_run</tspan><tspan fill="#94a3b8">(["systemctl","status","nginx"])</tspan></text>
+<text x="40" y="128" class="k3" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,'DejaVu Sans Mono',monospace" font-size="12.5" xml:space="preserve"><tspan fill="#64748b">  └ </tspan><tspan fill="#94a3b8">exit 3 · Active: failed (Result: exit-code)</tspan></text>
+<text x="40" y="147" class="k4" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,'DejaVu Sans Mono',monospace" font-size="12.5" xml:space="preserve"><tspan fill="#4ade80">● </tspan><tspan fill="#e2e8f0">lockssh_run</tspan><tspan fill="#94a3b8">(["journalctl","-u","nginx",</tspan></text>
+<text x="40" y="166" class="k5" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,'DejaVu Sans Mono',monospace" font-size="12.5" xml:space="preserve"><tspan fill="#94a3b8">               </tspan><tspan fill="#94a3b8">"-n","2","--no-pager"])</tspan></text>
+<text x="40" y="185" class="k6" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,'DejaVu Sans Mono',monospace" font-size="12.5" xml:space="preserve"><tspan fill="#64748b">  └ </tspan><tspan fill="#94a3b8">[alert] worker process 812 exited on signal 9</tspan></text>
+<text x="40" y="204" class="k7" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,'DejaVu Sans Mono',monospace" font-size="12.5" xml:space="preserve"><tspan fill="#64748b">    </tspan><tspan fill="#94a3b8">[error] upstream timed out, client: </tspan><tspan fill="#a78bfa">⟦ip:9K2QF7XM3RDA⟧</tspan></text>
+<text x="40" y="223" class="k8" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,'DejaVu Sans Mono',monospace" font-size="12.5" xml:space="preserve"><tspan fill="#e2e8f0">● </tspan><tspan fill="#e2e8f0">Its workers were killed. Restarting nginx needs</tspan></text>
+<text x="40" y="242" class="k9" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,'DejaVu Sans Mono',monospace" font-size="12.5" xml:space="preserve"><tspan fill="#e2e8f0">  </tspan><tspan fill="#e2e8f0">your approval.</tspan></text>
+<text x="40" y="261" class="k10" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,'DejaVu Sans Mono',monospace" font-size="12.5" xml:space="preserve"><tspan fill="#4ade80">● </tspan><tspan fill="#e2e8f0">lockssh_run</tspan><tspan fill="#94a3b8">(["systemctl","restart","nginx"])</tspan></text>
+<text x="40" y="280" class="k11" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,'DejaVu Sans Mono',monospace" font-size="12.5" xml:space="preserve"><tspan fill="#64748b">  └ </tspan><tspan fill="#facc15">pending · ticket 7c1e9a waits in lox run</tspan></text>
+<text x="40" y="299" class="k12" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,'DejaVu Sans Mono',monospace" font-size="12.5" xml:space="preserve"><tspan fill="#4ade80">● </tspan><tspan fill="#e2e8f0">lockssh_run</tspan><tspan fill="#94a3b8">(["systemctl","restart","nginx"],</tspan></text>
+<text x="40" y="318" class="k13" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,'DejaVu Sans Mono',monospace" font-size="12.5" xml:space="preserve"><tspan fill="#94a3b8">               </tspan><tspan fill="#94a3b8">ticket: "7c1e9a")</tspan></text>
+<text x="40" y="337" class="k14" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,'DejaVu Sans Mono',monospace" font-size="12.5" xml:space="preserve"><tspan fill="#64748b">  └ </tspan><tspan fill="#94a3b8">exit 0 · 0.8s</tspan></text>
+<text x="40" y="356" class="k15" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,'DejaVu Sans Mono',monospace" font-size="12.5" xml:space="preserve"><tspan fill="#4ade80">● </tspan><tspan fill="#e2e8f0">lockssh_run</tspan><tspan fill="#94a3b8">(["systemctl","is-active","nginx"])</tspan></text>
+<text x="40" y="375" class="k16" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,'DejaVu Sans Mono',monospace" font-size="12.5" xml:space="preserve"><tspan fill="#64748b">  └ </tspan><tspan fill="#4ade80">active</tspan></text>
+<text x="40" y="394" class="k17" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,'DejaVu Sans Mono',monospace" font-size="12.5" xml:space="preserve"><tspan fill="#e2e8f0">● </tspan><tspan fill="#e2e8f0">nginx is back up on web1.</tspan></text>
+<rect x="600" y="32" width="576" height="536" rx="12" fill="#020617" stroke="#253047" stroke-width="1.5"/>
+<path d="M600 44 a12 12 0 0 1 12 -12 h552 a12 12 0 0 1 12 12 v18 h-576 z" fill="#0f172a"/>
+<circle cx="618" cy="47" r="5" fill="#f87171" fill-opacity=".7"/>
+<circle cx="634" cy="47" r="5" fill="#facc15" fill-opacity=".7"/>
+<circle cx="650" cy="47" r="5" fill="#4ade80" fill-opacity=".7"/>
+<text x="670" y="52" font-family="Inter,-apple-system,'Segoe UI',system-ui,Helvetica,Arial,'DejaVu Sans',sans-serif" font-size="12" fill="#94a3b8" font-weight="600" text-anchor="start" xml:space="preserve">lox run · lockhub</text>
+<text x="1162" y="52" font-family="Inter,-apple-system,'Segoe UI',system-ui,Helvetica,Arial,'DejaVu Sans',sans-serif" font-size="12" fill="#64748b" font-weight="400" text-anchor="end" xml:space="preserve">you</text>
+<text x="614" y="88" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,'DejaVu Sans Mono',monospace" font-size="11.5" xml:space="preserve"><tspan fill="#020617"> AUTO </tspan><tspan fill="#e2e8f0">  </tspan><tspan fill="#4ade80">● hub up</tspan><tspan fill="#94a3b8"> · 1 lock</tspan></text>
+<rect x="612" y="76" width="45.5" height="16" rx="3" fill="#5eead4"/>
+<text x="614" y="88" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,'DejaVu Sans Mono',monospace" font-size="11.5" xml:space="preserve"><tspan fill="#020617"> AUTO </tspan></text>
+<text x="614" y="124" class="k18" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,'DejaVu Sans Mono',monospace" font-size="11.5" xml:space="preserve"><tspan fill="#64748b">14:02:01 </tspan><tspan fill="#94a3b8">dev-1 </tspan><tspan fill="#38bdf8">◆ web </tspan><tspan fill="#e2e8f0">run  systemctl status nginx</tspan><tspan fill="#4ade80">  ✓ auto</tspan></text>
+<text x="614" y="142" class="k19" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,'DejaVu Sans Mono',monospace" font-size="11.5" xml:space="preserve"><tspan fill="#64748b">14:02:03 </tspan><tspan fill="#94a3b8">dev-1 </tspan><tspan fill="#38bdf8">◆ web </tspan><tspan fill="#e2e8f0">run  journalctl -u nginx -n 2 …</tspan><tspan fill="#4ade80">  ✓ auto</tspan></text>
+<text x="614" y="170.8" class="k20" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,'DejaVu Sans Mono',monospace" font-size="11.5" fill="#64748b" font-weight="400" text-anchor="start" xml:space="preserve">allow-listed commands run at once; only the log shows them</text>
+<g class="k21"><text x="614" y="196" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,'DejaVu Sans Mono',monospace" font-size="11.5" xml:space="preserve"><tspan fill="#f87171">┌ </tspan><tspan fill="#f87171">◆ QUESTION </tspan><tspan fill="#e2e8f0">exec</tspan><tspan fill="#94a3b8"> on web/web1 </tspan><tspan fill="#f87171">─────────────────────────────────────────────┐</tspan></text><text x="614" y="214" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,'DejaVu Sans Mono',monospace" font-size="11.5" xml:space="preserve"><tspan fill="#f87171">│ </tspan><tspan fill="#e2e8f0">dev-1</tspan><tspan fill="#64748b"> asks · ◆ lockssh · expires in 9m</tspan><tspan fill="#f87171">                                   │</tspan></text><text x="614" y="232" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,'DejaVu Sans Mono',monospace" font-size="11.5" xml:space="preserve"><tspan fill="#f87171">│ </tspan><tspan fill="#e2e8f0">lockssh-ro@web1.example.com:22 · exec</tspan><tspan fill="#f87171">                                    │</tspan></text><text x="614" y="250" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,'DejaVu Sans Mono',monospace" font-size="11.5" xml:space="preserve"><tspan fill="#f87171">│ </tspan><tspan fill="#64748b">agent: restart nginx, its workers were killed</tspan><tspan fill="#f87171">                            │</tspan></text><text x="614" y="268" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,'DejaVu Sans Mono',monospace" font-size="11.5" xml:space="preserve"><tspan fill="#f87171">│</tspan><tspan fill="#f87171">                                                                          │</tspan></text><text x="614" y="286" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,'DejaVu Sans Mono',monospace" font-size="11.5" xml:space="preserve"><tspan fill="#f87171">│ </tspan><tspan fill="#facc15">RUN systemctl restart nginx</tspan><tspan fill="#f87171">                                              │</tspan></text><text x="614" y="304" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,'DejaVu Sans Mono',monospace" font-size="11.5" xml:space="preserve"><tspan fill="#f87171">│</tspan><tspan fill="#f87171">                                                                          │</tspan></text><text x="614" y="322" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,'DejaVu Sans Mono',monospace" font-size="11.5" xml:space="preserve"><tspan fill="#f87171">│ </tspan><tspan fill="#e2e8f0">no allow rule matches: exec (the profile allows asking</tspan><tspan fill="#f87171">                   │</tspan></text><text x="614" y="340" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,'DejaVu Sans Mono',monospace" font-size="11.5" xml:space="preserve"><tspan fill="#f87171">│ </tspan><tspan fill="#e2e8f0">for any command)</tspan><tspan fill="#f87171">                                                         │</tspan></text><text x="614" y="358" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,'DejaVu Sans Mono',monospace" font-size="11.5" xml:space="preserve"><tspan fill="#f87171">│ </tspan><tspan fill="#e2e8f0">output: masked (card, email, iban, ip, phone, secret)</tspan><tspan fill="#f87171">                    │</tspan></text><text x="614" y="376" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,'DejaVu Sans Mono',monospace" font-size="11.5" xml:space="preserve"><tspan fill="#f87171">│ </tspan><tspan fill="#e2e8f0">limits: 30s · 65536 bytes per stream</tspan><tspan fill="#f87171">                                     │</tspan></text><text x="614" y="394" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,'DejaVu Sans Mono',monospace" font-size="11.5" xml:space="preserve"><tspan fill="#f87171">│ </tspan><tspan fill="#f87171">! a command outside the allow list: it may change the host</tspan><tspan fill="#f87171">               │</tspan></text><text x="614" y="412" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,'DejaVu Sans Mono',monospace" font-size="11.5" xml:space="preserve"><tspan fill="#f87171">└</tspan><tspan fill="#f87171">──────────────────────────────────────────────────────────────────────────┘</tspan></text></g>
+<text x="614" y="448" class="k22" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,'DejaVu Sans Mono',monospace" font-size="11.5" xml:space="preserve"><tspan fill="#e2e8f0">approve? </tspan><tspan fill="#4ade80">y</tspan><tspan fill="#e2e8f0">/n </tspan></text>
+<text x="710.922" y="448" class="k23" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,'DejaVu Sans Mono',monospace" font-size="11.5" fill="#4ade80" font-weight="700" text-anchor="start" xml:space="preserve">y</text>
+<rect x="710.9" y="438" width="6.9" height="13" fill="#e2e8f0" class="k24"/>
+<g class="k25"><rect x="980" y="433" width="180" height="22" rx="6" fill="#a78bfa"/><text x="1070" y="448" font-family="Inter,-apple-system,'Segoe UI',system-ui,Helvetica,Arial,'DejaVu Sans',sans-serif" font-size="12" fill="#020617" font-weight="700" text-anchor="middle" xml:space="preserve">only you can answer</text></g>
+<text x="614" y="160" class="k26" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,'DejaVu Sans Mono',monospace" font-size="11.5" xml:space="preserve"><tspan fill="#64748b">14:02:19 </tspan><tspan fill="#94a3b8">dev-1 </tspan><tspan fill="#38bdf8">◆ web </tspan><tspan fill="#e2e8f0">exec systemctl restart nginx</tspan><tspan fill="#4ade80">  ✓ you</tspan></text>
+<text x="614" y="178" class="k27" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,'DejaVu Sans Mono',monospace" font-size="11.5" xml:space="preserve"><tspan fill="#64748b">         </tspan><tspan fill="#64748b">signed by the hub · runs once, for this agent, this argv</tspan></text>
+<text x="614" y="196" class="k28" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,'DejaVu Sans Mono',monospace" font-size="11.5" xml:space="preserve"><tspan fill="#64748b">14:02:21 </tspan><tspan fill="#94a3b8">dev-1 </tspan><tspan fill="#38bdf8">◆ web </tspan><tspan fill="#e2e8f0">run  systemctl is-active nginx</tspan><tspan fill="#4ade80">  ✓ auto</tspan></text>
+<rect x="616" y="490" width="544" height="62" rx="10" fill="#0f172a" stroke="#38bdf8" stroke-width="1.5" stroke-dasharray="6 5"/>
+<text x="632" y="516" font-family="Inter,-apple-system,'Segoe UI',system-ui,Helvetica,Arial,'DejaVu Sans',sans-serif" font-size="14" fill="#38bdf8" font-weight="700" text-anchor="start" xml:space="preserve">web1.example.com</text>
+<text x="632" y="536" font-family="Inter,-apple-system,'Segoe UI',system-ui,Helvetica,Arial,'DejaVu Sans',sans-serif" font-size="12" fill="#94a3b8" font-weight="400" text-anchor="start" xml:space="preserve">SSH: no PTY · no stdin · every argument quoted</text>
+<text x="1144" y="516" font-family="Inter,-apple-system,'Segoe UI',system-ui,Helvetica,Arial,'DejaVu Sans',sans-serif" font-size="12" fill="#94a3b8" font-weight="400" text-anchor="end" xml:space="preserve">the key stays in the</text>
+<text x="1144" y="536" font-family="Inter,-apple-system,'Segoe UI',system-ui,Helvetica,Arial,'DejaVu Sans',sans-serif" font-size="12" fill="#94a3b8" font-weight="400" text-anchor="end" xml:space="preserve">lockssh console's container</text>
+<rect x="568" y="256.0" width="28" height="88" rx="4" fill="#5eead4" fill-opacity=".85"/>
+<text x="582.0" y="246.0" font-family="Inter,-apple-system,'Segoe UI',system-ui,Helvetica,Arial,'DejaVu Sans',sans-serif" font-size="11" fill="#5eead4" font-weight="700" text-anchor="middle" xml:space="preserve">socket</text>
+<circle r="6" cx="0" cy="0" fill="#5eead4" class="k29"/>
+<circle r="6" cx="0" cy="0" fill="#38bdf8" class="k30"/>
+<circle r="6" cx="0" cy="0" fill="#5eead4" class="k31"/>
+<circle r="6" cx="0" cy="0" fill="#38bdf8" class="k32"/>
+<circle r="6" cx="0" cy="0" fill="#5eead4" class="k33"/>
+<circle r="6" cx="0" cy="0" fill="#38bdf8" class="k34"/>
+<circle r="6" cx="0" cy="0" fill="#5eead4" class="k35"/>
+<circle r="6" cx="0" cy="0" fill="#38bdf8" class="k36"/>
+<circle r="6" cx="0" cy="0" fill="#facc15" class="k37"/>
+<text x="600.0" y="616" class="k38" font-family="Inter,-apple-system,'Segoe UI',system-ui,Helvetica,Arial,'DejaVu Sans',sans-serif" font-size="26" fill="#e2e8f0" font-weight="650" text-anchor="middle" xml:space="preserve">Allowed commands run at once. Your agent never holds the key.</text>
+<text x="600.0" y="616" class="k39" font-family="Inter,-apple-system,'Segoe UI',system-ui,Helvetica,Arial,'DejaVu Sans',sans-serif" font-size="26" fill="#e2e8f0" font-weight="650" text-anchor="middle" xml:space="preserve">Anything else waits for you, on a ticket it can't sign.</text>
+<text x="600.0" y="616" class="k40" font-family="Inter,-apple-system,'Segoe UI',system-ui,Helvetica,Arial,'DejaVu Sans',sans-serif" font-size="26" fill="#e2e8f0" font-weight="650" text-anchor="middle" xml:space="preserve">It runs once. The output comes back masked.</text>
+</svg>
