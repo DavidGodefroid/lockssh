@@ -251,7 +251,7 @@ func TestDoctorFlagRules(t *testing.T) {
 // fixed and the checks after them.
 func TestDoctorFixYesJSON(t *testing.T) {
 	root := project(t, oneProfile)
-	// .lockssh is 0775: lox up refuses a directory others than you can
+	// .lockssh is 0775: lox run refuses a directory others than you can
 	// write.
 	svc := svcAccount{name: "lockssh", uid: os.Getuid() + 7}
 	var out, errb bytes.Buffer

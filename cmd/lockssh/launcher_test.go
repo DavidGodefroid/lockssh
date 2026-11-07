@@ -16,7 +16,7 @@ import (
 // "--". PATH holds only the tools the launcher needs.
 type launcherFixture struct {
 	root, bin, project, calls, script string
-	// fake holds what the fake docker prints for lox up's volumes and
+	// fake holds what the fake docker prints for lox run's volumes and
 	// containers (launcher_lockup_test.go).
 	fake string
 	env  []string
@@ -57,7 +57,7 @@ func newLauncherFixture(t *testing.T) *launcherFixture {
 	f.script = filepath.Join(root, "lockssh")
 	writeExec(t, f.script, string(launcher))
 	f.env = []string{"PATH=" + f.bin, "HOME=" + filepath.Join(root, "home")}
-	// The workspace (root) runs a lockssh lock mq under lox up.
+	// The workspace (root) runs a lockssh lock mq under lox run.
 	f.loxUp(t, root, map[string]string{"mq": "lockssh"})
 	return f
 }
@@ -245,7 +245,7 @@ func TestLauncherAccountsPerCommand(t *testing.T) {
 	f := newLauncherFixture(t)
 	me := strconv.Itoa(os.Getuid()) + ":" + strconv.Itoa(os.Getgid())
 	home := filepath.Join(f.root, "home")
-	// The agent commands: lox up's socket volume, read-only; never the
+	// The agent commands: lox run's socket volume, read-only; never the
 	// fixed one of a console the launcher started.
 	sock, fixed := mountOf(f.root, "mq"), []string{"-v", "lockssh-run:/run/lockssh"}
 	hostUID := []string{"-e", "LOCKSSH_HOST_UID=" + strconv.Itoa(os.Getuid())}
@@ -257,7 +257,7 @@ func TestLauncherAccountsPerCommand(t *testing.T) {
 		{[]string{"status", "--json"}, [][]string{sock}, [][]string{{"--user"}, {"-v", "lockssh-home:/home/lockssh"}, fixed}},
 		{[]string{"run", "uptime"}, [][]string{sock}, [][]string{{"--user"}, fixed}},
 		{[]string{"run", "--intent", "why", "df", "-h"}, [][]string{sock}, [][]string{{"--user"}, {"-v", "lockssh-home:/home/lockssh"}, fixed}},
-		// doctor checks .lockssh for your uid, as lox up copies it; --fix
+		// doctor checks .lockssh for your uid, as lox run copies it; --fix
 		// starts as root for its repairs (the image then becomes the agent
 		// account to check, with the same socket).
 		{[]string{"doctor"}, [][]string{sock, hostUID}, [][]string{{"--user"}, fixed}},

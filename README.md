@@ -92,12 +92,17 @@ launcher, which runs every command in the signed image
 2. Wire your agent in the project: `lockssh init claude`, `lockssh init codex`,
    `lockssh init cursor` or `lockssh init gemini`.
 
-3. Check the setup, then start the console with its hub (Lock Family):
+3. Check the setup:
 
    ```sh
    lockssh doctor
-   lox up
    ```
+
+   The console is started by `lox run`, with its hub (Lock Family), from the
+   lockhub release that adds the lockssh lock type
+   ([lockhub#133](https://github.com/DavidGodefroid/lockhub/issues/133)). No
+   lockhub release knows lockssh yet, and the console does not start without
+   its hub: until that release, lockssh cannot run a console.
 
 4. Ask your agent: *"Is nginx running on web1? Show the last errors."* It calls
    `lockssh_status`, then `lockssh_run` with `["systemctl", "status", "nginx"]`
@@ -156,8 +161,10 @@ public IPs, cards, IBANs, phones, secrets.
 
 ## How it works
 
-1. `lox up` starts the console in its own container, as the `lockssh`
-   account. It shows the profile's policy for approval, logs in over SSH
+1. `lox run` starts the console in its own container, as the `lockssh`
+   account (from the lockhub release that adds the lockssh type,
+   [lockhub#133](https://github.com/DavidGodefroid/lockhub/issues/133); not
+   released yet). It shows the profile's policy for approval, logs in over SSH
    (trusting the host key only on your answer), and checks the account.
 2. The agent's `lockssh mcp` (or CLI) runs as another account and reaches
    the console only through its socket.
