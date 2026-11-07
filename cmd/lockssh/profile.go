@@ -254,7 +254,7 @@ func runProfileAdd(e env, args []string) int {
 		return fail(failedError{err})
 	}
 	fmt.Fprintf(out, "Profile %s written to %s (%d allow rules, exec %t; no secret in the file).\n", pname, path, len(np.Allow), np.Exec)
-	fmt.Fprintf(out, "Start its console with its hub: lox add lockssh NAME (profile %s, project %s), then lox up\n", pname, root)
+	fmt.Fprintf(out, "Its console is started with its hub by lox run (lox add lockssh NAME, profile %s, project %s), from the lockhub release that adds the lockssh type (lockhub#133, not released yet)\n", pname, root)
 	fmt.Fprintln(out, "Wire your agents with: lockssh init <agent>")
 	if asJSON {
 		_ = verbs.WriteJSON(e.stdout, verbs.Profile{Lock: product.P.Name, Profile: pname, Config: path,

@@ -6,7 +6,7 @@ description: Use when the user explicitly asks to look at a server over SSH (dev
 # lockssh: gated commands over SSH
 
 **Purpose:** debugging a server, one targeted command at a time. Everything goes through the
-human's lockssh console, started by `lox up` in its own account, which holds the SSH key or
+human's lockssh console, started by `lox run` in its own account, which holds the SSH key or
 password and the only SSH connection. A command an allow rule of the profile matches runs at once;
 any other one is refused, or, on a profile with exec on, decided by the human on lockhub
 (`lox approve`, the lea deck or a paired phone). Output comes back masked: personal values become
@@ -21,7 +21,7 @@ Use the MCP tools (`lockssh_*`) when they are available, otherwise the `lockssh`
 directory. Both talk to the same console.
 
 1. **Console?** `lockssh_status` (CLI `lockssh status`). If no console runs (CLI exit code 2), ask
-   the user to run the command the status gives, `lox up`: *"Run `lox up`, then tell me."* and stop.
+   the user to run the command the status gives, `lox run`: *"Run `lox run`, then tell me."* and stop.
    Never start one yourself. Status lists the profile's `allow` rules and whether `exec` is on.
 2. **Allow-listed commands first.** `lockssh_run` with `argv` as separate strings:
    `["systemctl", "status", "nginx"]`, `["journalctl", "-u", "worker", "-n", "100", "--no-pager"]`.

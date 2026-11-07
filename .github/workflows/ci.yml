@@ -111,7 +111,7 @@ jobs:
           code=0; sh "$GITHUB_WORKSPACE/scripts/lockssh" profile add --non-interactive --json --host web1.example.com --user deploy --key "~/.ssh/id_ed25519" >out || code=$?
           test "$code" != 0 && grep -q '"code":"exists"' out
           # A fresh setup passes (warnings only: no console runs here), and
-          # .lockssh stays what lox up copies: yours, written by you only.
+          # .lockssh stays what lox run copies: yours, written by you only.
           sh "$GITHUB_WORKSPACE/scripts/lockssh" doctor --fix --yes --json >out
           grep -q '"ok":true' out && grep -q '"check":"project","status":"ok"' out
           test "$(stat -c %u .lockssh)" = "$(id -u)" && test -z "$(find .lockssh \( -perm -0020 -o -perm -0002 -o ! -user "$(id -u)" \) -print)"
@@ -125,7 +125,7 @@ jobs:
           grep -q '"ok":true' out && grep -q '"fixed":\["' out
           test "$(stat -c %u .lockssh)" = "$(id -u)" && test "$(stat -c %u .lockssh/pii.toml)" = "$(id -u)"
           test -z "$(find .lockssh \( -perm -0020 -o -perm -0002 -o ! -user "$(id -u)" \) -print)"
-          # No lox up here: no console's socket to mount (exit 2, as a client
+          # No lox run here: no console's socket to mount (exit 2, as a client
           # that finds no console), never the fixed lockssh-run instead.
           code=0; sh "$GITHUB_WORKSPACE/scripts/lockssh" status --profile dev 2>err || code=$?
           test "$code" = 2 && grep -q 'no .lockfamily/up.json' err

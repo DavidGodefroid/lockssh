@@ -138,10 +138,10 @@ func TestCLIExitCodes(t *testing.T) {
 	if !strings.Contains(stderr, "refused [E_NOT_ALLOWED]") || !strings.Contains(stderr, "retry: ask_user") {
 		t.Errorf("refusal text: %s", stderr)
 	}
-	// No console: the hint asks the user to run `lox up` and carries no
+	// No console: the hint asks the user to run `lox run` and carries no
 	// value (no profile or project flag, no project path, no hand start).
 	_, _, stderr = runWith(t, root, nil, noConsole, "", "status")
-	if !strings.Contains(stderr, client.StartHint) || !strings.Contains(stderr, "`lox up`") ||
+	if !strings.Contains(stderr, client.StartHint) || !strings.Contains(stderr, "`lox run`") ||
 		strings.Contains(stderr, "--profile") || strings.Contains(stderr, "--project") ||
 		strings.Contains(stderr, root) || strings.Contains(stderr, "lockssh console") {
 		t.Errorf("no console text: %s", stderr)
@@ -288,7 +288,7 @@ func TestDoctorShowsTarget(t *testing.T) {
 	if code != exitOK || !strings.Contains(out, "✓ separated setup: console account lockssh") ||
 		!strings.Contains(out, "profile dev: deploy@web1.example.com:22 · non-production · 1 allow rules · exec off · auth key · credentials none") ||
 		!strings.Contains(out, "profile q: ops@db1:22 · non-production · 0 allow rules · exec ON") ||
-		!strings.Contains(out, "console: not running; the console runs under `lox up`: run `lox up`, then `lox attach <instance>`") ||
+		!strings.Contains(out, "console: not running; the console runs under `lox run`: run `lox run`, then `lox attach <instance>`") ||
 		strings.Contains(out, "--profile") || strings.Contains(out, "--project") || strings.Contains(out, "lockssh console") {
 		t.Errorf("exit %d:\n%s", code, out)
 	}

@@ -4,7 +4,7 @@
 An SSH server container and the console container share a network; the
 console runs in a pseudo-terminal this script answers (policy, host key),
 holds the SSH key in its home volume, and is attached to a hub as
-`lox up` starts it (the hub flags are required; the hub named here is not
+`lox run` starts it (the hub flags are required; the hub named here is not
 running, so the first command waits for its connect ticket: the decision
 on a real hub is lockhub's own end-to-end test); the agent's commands run in
 throwaway containers that share only the socket volume and the project.
@@ -190,8 +190,8 @@ def main():
         check(r.returncode == 0 and doc.get("ok") is True, f"doctor --fix --yes --json passes on a fresh setup\n{r.stdout}{r.stderr}")
 
         def lox_up_copies(why):
-            # lox up copies only your own files and directories that no one
-            # else can write (lockhub's docs/lox-up.md).
+            # lox run copies only your own files and directories that no one
+            # else can write (lockhub's docs/lox-run.md).
             bad = []
             for d, dirs, files in os.walk(os.path.join(project, ".lockssh")):
                 for p in [d] + [os.path.join(d, f) for f in files]:
@@ -215,10 +215,10 @@ def main():
         lox_up_copies("doctor --fix after an older one")
         os.remove(os.path.join(project, ".lockssh", "pii.toml"))
 
-        # Without its hub the console refuses to start: launched by lox up only.
+        # Without its hub the console refuses to start: launched by lox run only.
         r = sh("docker", "run", "--rm", "--user", "lockssh", "-v", f"{project}:{project}",
                IMAGE, "console", "--project", project, check_=False)
-        check(r.returncode != 0 and "launched by `lox up` only" in r.stdout + r.stderr, f"console without --hub refused\n{r.stdout}{r.stderr}")
+        check(r.returncode != 0 and "launched by `lox run` only" in r.stdout + r.stderr, f"console without --hub refused\n{r.stdout}{r.stderr}")
 
         # Run the console, attached to a hub (its pinned key; the hub itself
         # is not running).

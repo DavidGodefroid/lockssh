@@ -4,6 +4,16 @@ All notable changes to lockssh. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [Semantic Versioning](https://semver.org/) (no stability promise before 1.0).
 
+## [Unreleased]
+
+### Changed
+
+- Docs, agent assets, the launcher and the console's messages name `lox run`
+  (`lox up` is deprecated since lockhub v0.10.0), and say that no lockhub
+  release starts a lockssh console yet: that comes with the lockssh lock
+  type (lockhub#133).
+- lockkit v0.14.1 (its console texts name `lox run`).
+
 ## [0.1.0] - 2026-11-06
 
 First pre-release. Builds on lockkit v0.14.0 (`tunnel.Tunnel.NewSession`);

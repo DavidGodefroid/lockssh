@@ -1,7 +1,7 @@
 ## Server access over SSH (lockssh)
 
 Agents reach servers over SSH only through lockssh: the human's lockssh console, started by
-`lox up` in its own account, holds the SSH key or password and the only SSH connection. Use it for
+`lox run` in its own account, holds the SSH key or password and the only SSH connection. Use it for
 debugging, one targeted command at a time, and only on the user's explicit request.
 
 1. `lockssh_status` (CLI `lockssh status`). If no console runs (exit code 2), ask the user to run
