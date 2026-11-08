@@ -224,7 +224,7 @@ Streaming is not needed (above). What lockssh still needs is lox support
 |---|---|---|
 | #3 Console | Shipped (`internal/config`, `internal/sshconsole`, hub mode, audit; `hub_test.go`, `integration_test.go`) | nothing beyond #4's changes |
 | #4 Agent surface | Shipped but for the items marked change | `lockssh_pii_list` / `lockssh_pii_add` and `.lockssh/pii.toml` through the reviewed policy; production `auto.exec` refusal; `exec` before the remote line, an argv[0] starting with `-`/`+` refused, builtin-only rule programs refused at load; globs that match no `-`/`+` option and no `.`/`..` segment; the policy-review warning on code-running programs (version suffixes stripped) and option globs; leak, injection and equivalence suites named as locklog#63 |
-| #5 Launcher verbs | Shipped | `lockssh version --json` with the protocol number lea's `locks.lock` and lockhub's contract tests read; none of the injection or glob rules |
+| #5 Launcher verbs | Shipped, with `version --json` and golden tests of each verb's output (`cmd/lockssh/testdata/`) | nothing; none of the injection or glob rules |
 | #6 Release | v0.1.0 tagged and published, image signed, tap dispatched | the next pre-release with #4 and #5 |
 | #7 Docs and site | README, security model, usage, Docker, demo, banners | `site/`, `pages.yml`, `scripts/check-site.py`, domain |
 | #11 lox | Docs say what is true | the quick start once lockhub#133 ships |
