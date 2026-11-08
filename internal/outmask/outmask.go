@@ -68,7 +68,11 @@ type Result struct {
 	Kinds map[string]int
 }
 
-// Mask masks s.
+// Mask masks s in two passes. The detectors' matches become placeholders
+// first; the mask rules then run on that text, the one shown without
+// them, so whether a rule matches never depends on a masked value and a
+// rule cannot test one. A rule's match masks the shown text it covers but
+// never a placeholder, which stays as the detectors made it.
 func (m *Masker) Mask(s string) Result {
 	if m.broken {
 		if s == "" {
@@ -76,28 +80,69 @@ func (m *Masker) Mask(s string) Result {
 		}
 		return Result{Text: "⟦" + MaskKind + "⟧", Kinds: map[string]int{MaskKind: 1}}
 	}
-	spans := m.spans(s)
-	var b strings.Builder
-	b.Grow(len(s))
+	var t strings.Builder
+	t.Grow(len(s))
 	kinds := map[string]int{}
+	var holes [][2]int // the placeholders' ranges in t
 	last := 0
-	for _, sp := range spans {
-		b.WriteString(valid(s[last:sp.Start]))
-		b.WriteString(m.placeholder(sp.Kind, s[sp.Start:sp.End]))
+	for _, sp := range m.spans(s) {
+		t.WriteString(valid(s[last:sp.Start]))
+		p := m.placeholder(sp.Kind, s[sp.Start:sp.End])
+		holes = append(holes, [2]int{t.Len(), t.Len() + len(p)})
+		t.WriteString(p)
 		kinds[sp.Kind]++
 		last = sp.End
 	}
-	b.WriteString(valid(s[last:]))
+	t.WriteString(valid(s[last:]))
+	text := m.applyRules(t.String(), holes, kinds)
 	if len(kinds) == 0 {
 		kinds = nil
 	}
-	return Result{Text: b.String(), Kinds: kinds}
+	return Result{Text: text, Kinds: kinds}
 }
 
-// spans are the ranges of s to mask, sorted and disjoint: the detectors'
-// matches but the allowed ones, and the mask rules' matches. Overlapping
-// ranges merge into one, so no byte of either leaks; a merged range that
-// holds a secret is a secret.
+// applyRules masks what the mask rules match in t, outside holes. Each
+// run of matched bytes between placeholders is one masked value; it starts
+// and ends on a rune boundary, as matches and placeholders do.
+func (m *Masker) applyRules(t string, holes [][2]int, kinds map[string]int) string {
+	hit := make([]bool, len(t))
+	found := false
+	for _, re := range m.rules {
+		for _, ix := range re.FindAllStringIndex(t, -1) {
+			for i := ix[0]; i < ix[1]; i++ {
+				hit[i], found = true, true
+			}
+		}
+	}
+	if !found {
+		return t
+	}
+	for _, h := range holes {
+		for i := h[0]; i < h[1]; i++ {
+			hit[i] = false
+		}
+	}
+	var b strings.Builder
+	b.Grow(len(t))
+	for i := 0; i < len(t); {
+		j := i
+		for j < len(t) && hit[j] == hit[i] {
+			j++
+		}
+		if hit[i] {
+			b.WriteString(m.placeholder(MaskKind, t[i:j]))
+			kinds[MaskKind]++
+		} else {
+			b.WriteString(t[i:j])
+		}
+		i = j
+	}
+	return b.String()
+}
+
+// spans are the ranges of s the detectors found, but the allowed ones,
+// sorted and disjoint. Overlapping ranges merge into one, so no byte of
+// either leaks; a merged range that holds a secret is a secret.
 func (m *Masker) spans(s string) []pii.Match {
 	var all []pii.Match
 	for _, mt := range pii.FindInViews(s, m.ds) {
@@ -108,13 +153,6 @@ func (m *Masker) spans(s string) []pii.Match {
 			continue
 		}
 		all = append(all, mt)
-	}
-	for _, re := range m.rules {
-		for _, ix := range re.FindAllStringIndex(s, -1) {
-			if ix[0] < ix[1] {
-				all = append(all, pii.Match{Start: ix[0], End: ix[1], Kind: MaskKind})
-			}
-		}
 	}
 	sort.SliceStable(all, func(i, j int) bool {
 		if all[i].Start != all[j].Start {

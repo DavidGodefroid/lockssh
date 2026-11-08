@@ -191,7 +191,10 @@ kind = "email"
 value = "support@example.com"
 ```
 
-What a mask rule matches becomes `⟦mask:…⟧`. The agent may add a mask rule
+What a mask rule matches becomes `⟦mask:…⟧`. Mask rules run on the output
+once the detectors have masked it, and never change a detector's
+placeholder: a rule only sees what is already shown, so it cannot tell
+anything about a masked value. The agent may add a mask rule
 (`lockssh_pii_add`, `lockssh pii add`): it masks more, so it applies at
 once and is appended to the file. A new allow rule, or a removed mask
 rule, shows more: it waits for the human in the console (`:review`).

@@ -49,8 +49,8 @@ func TestAllowRules(t *testing.T) {
 	}
 }
 
-// Overlapping matches merge: no byte of a longer match leaks past a
-// shorter one that starts first, and a secret inside stays a secret.
+// A rule overlapping a detector's match leaks no byte of either, and a
+// secret stays a secret.
 func TestOverlapsMerge(t *testing.T) {
 	m := masker(t, []string{"id=[a-z]+@ex", "abcdef"}, nil)
 	r := m.Mask("x id=alice@example.com y abcdefabcdef")

@@ -98,6 +98,9 @@ func TestToolsListed(t *testing.T) {
 }
 
 func TestRunFramesAndPending(t *testing.T) {
+	// Run inside an agent, these would add a requester to the call.
+	t.Setenv("LEA_AGENT", "")
+	t.Setenv("LEA_AGENT_TOKEN", "")
 	conn := &fakeConn{answer: `{"untrusted":"x","data":{"command":"uptime","action":"run","exit_status":0,"stdout":"up","stderr":""}}`}
 	cs := session(t, conn)
 	res, err := cs.CallTool(context.Background(), &mcp.CallToolParams{Name: ToolRun, Arguments: map[string]any{"argv": []string{"uptime"}, "intent": "why"}})
