@@ -5,6 +5,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -14,9 +15,11 @@ import (
 
 	"github.com/DavidGodefroid/lockkit/agentwire"
 	"github.com/DavidGodefroid/lockkit/hubclient"
+	"github.com/DavidGodefroid/lockkit/ipc"
 	"github.com/DavidGodefroid/lockkit/sysconf"
 
 	"github.com/DavidGodefroid/lockssh/internal/mcptools"
+	"github.com/DavidGodefroid/lockssh/internal/product"
 )
 
 // version is set at build time (-X main.version=...).
@@ -99,12 +102,13 @@ Client commands (--profile P, --json)
   run           [--intent TEXT] [--unmask] [--dry-run] [--ticket T] [--] PROGRAM [ARG]...
                                         run a command on the host (argv, no shell; masked
                                         output); flags before the program
+  pii           list | add "REGEXP"     the PII mask and allow rules; add a mask rule (masks more, applied at once)
   request       "allow=..."             queue a change for the human (never applied)
   logout
   mcp           [--profile P] [--instance NAME]  MCP server on stdin/stdout
 
 Other
-  version, help
+  version [--json], help
 
 Exit codes  0 ok · 1 refused/denied/failed · 2 no console · 3 usage/config error
 `
@@ -120,7 +124,7 @@ func main() {
 }
 
 // clientCommands are the commands that talk to a console.
-var clientCommands = []string{"status", "run", "request", "logout"}
+var clientCommands = []string{"status", "run", "pii", "request", "logout"}
 
 func run(e env, args []string) int {
 	if len(args) == 0 {
@@ -129,8 +133,7 @@ func run(e env, args []string) int {
 	}
 	switch cmd := args[0]; cmd {
 	case "version", "--version":
-		fmt.Fprintln(e.stdout, "lockssh "+version)
-		return exitOK
+		return runVersion(e, args[1:])
 	case "help", "-h", "--help":
 		fmt.Fprint(e.stdout, usageText)
 		return exitOK
@@ -194,4 +197,29 @@ func runHubKey(e env, args []string) int {
 		return exitUsage
 	}
 	return exitOK
+}
+
+// versionOut is `lockssh version --json`: what lea's locks.lock and
+// lockhub's contract tests read. ProtocolMajor is the console protocol
+// (lockkit ipc): a client and a console of different majors refuse to
+// talk.
+type versionOut struct {
+	Name          string `json:"name"`
+	Version       string `json:"version"`
+	ProtocolMajor int    `json:"protocol_major"`
+}
+
+// runVersion is `lockssh version [--json]`.
+func runVersion(e env, args []string) int {
+	const usage = "lockssh version [--json]"
+	switch {
+	case len(args) == 0:
+		fmt.Fprintln(e.stdout, "lockssh "+version)
+		return exitOK
+	case len(args) == 1 && args[0] == "--json":
+		b, _ := json.Marshal(versionOut{Name: product.P.Name, Version: version, ProtocolMajor: ipc.ProtocolMajor})
+		fmt.Fprintln(e.stdout, string(b))
+		return exitOK
+	}
+	return usageFail(e, "version", usage, "wrong arguments")
 }

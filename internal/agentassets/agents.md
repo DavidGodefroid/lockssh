@@ -11,7 +11,8 @@ debugging, one targeted command at a time, and only on the user's explicit reque
    one is refused, or on a profile with exec on, decided by the human on lockhub (pending: end your
    turn, then call again with the same argv and the ticket). Pass `intent`; with the CLI use a
    600000 ms command timeout.
-- Output is masked (`⟦email:…⟧`, `⟦secret⟧`); clear output needs the human (`unmask`).
+- Output is masked (`⟦email:…⟧`, `⟦secret⟧`); clear output needs the human (`unmask`). Personal
+  data shown in clear: add a mask rule with `lockssh_pii_add` (CLI `lockssh pii add`).
 - A rule or a limit in the way: `lockssh_request_change` (CLI `lockssh request`) only queues a
   proposal. Never edit the lockssh config to loosen it yourself, and never use `ssh`, `scp` or
   any other way to reach a server directly.

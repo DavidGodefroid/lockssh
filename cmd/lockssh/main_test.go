@@ -180,6 +180,8 @@ func TestToolsListMatchesCLI(t *testing.T) {
 			continue
 		case "request":
 			fromCLI = append(fromCLI, "lockssh_request_change")
+		case "pii":
+			fromCLI = append(fromCLI, "lockssh_pii_list", "lockssh_pii_add")
 		default:
 			fromCLI = append(fromCLI, "lockssh_"+c)
 		}

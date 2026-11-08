@@ -57,8 +57,10 @@ console framework holds it; lockssh adds the SSH side.
   `sh -c`, `xargs`, `git` with hooks) turns a narrow rule into a shell. Allow
   such programs only with literal arguments, never with `*` or `**`.
   [decisions.md](decisions.md#programs-that-run-code-from-their-arguments)
-  lists them; a later release warns on such a rule and keeps globs off
-  options and `..` segments.
+  lists them, and the policy review warns on such a rule; the list is a
+  safety net, not a complete one. Globs never match an option (`-`, `+`)
+  nor a `.`/`..` segment, so a glob cannot choose an option the human
+  never wrote or climb out of a directory.
 - **It does not resolve paths on the host.** A rule's path is text: a
   symlink under an allowed directory reads wherever it points.
 - **It does not confine the SSH account.** What a command can do is what

@@ -82,21 +82,49 @@ An allow rule is an argv pattern, its tokens separated by spaces:
 | `*`, `nginx*`, `*.service`, `[ab]?` | one argument, as a glob ([path.Match](https://pkg.go.dev/path#Match)): `*` and `?` never match `/` |
 | `**` (last token only) | zero or more remaining arguments |
 
-The first token, the program, is always literal. Examples:
+The first token, the program, is always literal, and never a shell builtin
+or keyword (`eval`, `exec`, `command`, `.`, `source`, `trap`, `let`,
+`alias`, `declare`, `cd`, `if`…): such a rule is refused when the policy
+loads. Two more rules hold for every glob and for `**`:
+
+1. **No options.** A glob never matches an argument that starts with `-` or
+   `+`, unless the glob itself starts with the same character
+   (`--since=*` matches `--since=today`, `+%*` matches `+%F`). `**` never
+   matches one. After a literal `--` in the rule, globs and `**` match
+   operands, which may then start with `-` or `+`.
+2. **No climbing.** A `.` or `..` path segment a glob covers is refused
+   (`*` matches `.hidden`, not `..`); a segment the rule spells literally is
+   yours (`cat ../x` allows `../x`).
+
+Examples:
 
 | Rule | Allows | Not |
 |---|---|---|
 | `uptime` | `uptime` | `uptime -p` |
 | `systemctl status *` | `systemctl status nginx` | `systemctl restart nginx`, `systemctl status a b` |
 | `cat /var/log/*` | `cat /var/log/syslog` | `cat /var/log/../../etc/shadow`, `cat /var/log/nginx/error.log` |
+| `cat /var/log/*/*/*` | `cat /var/log/nginx/old/error.log` | `cat /var/log/../../etc/shadow` |
+| `ls *` | `ls src` | `ls ..`, `ls -la` |
+| `git log *` | `git log main` | `git log --output=/home/u/.bashrc` |
+| `journalctl *` | `journalctl nginx.service` | `journalctl --vacuum-time=1s` |
+| `journalctl --since=*` | `journalctl --since=today` | `journalctl --until=now` |
+| `less *` | `less notes.txt` | `less +!id` |
 | `journalctl -u * -n * --no-pager` | `journalctl -u nginx -n 50 --no-pager` | `journalctl -u nginx` |
-| `echo **` | `echo`, `echo a b c` | |
+| `echo **` | `echo`, `echo a b c` | `echo -e a`, `echo ../x` |
+| `grep -- * app.log` | `grep -- -v app.log` | `grep -v x app.log` |
 
 A rule allows a program with the arguments it names; it cannot know what
 the program does with them. Some programs run other programs or write
-files from their own arguments (`find -exec`, `awk`, `vim`, `less`,
-`tar --to-command`, `sudo`, `env`, `sh -c`): never allow them with a glob or
-`**`.
+files from their own arguments (`find -exec`, `awk`, `sed`, `vim`, `less`,
+`tar --to-command`, `sudo`, `env`, `sh -c`, `python3`, `dd`, `tee`):
+never allow them with a glob or `**`. The policy review warns on a rule
+that names one of them (its base name, version suffix stripped:
+`python3.11` is `python`) with a glob or `**`, on a glob that chooses an
+option (`-*`, `--*`, `-[a-z]`), and on a glob after a literal `--`. The
+table of programs is in
+[decisions.md](decisions.md#programs-that-run-code-from-their-arguments);
+it is a safety net, not a complete list: a program missing from it is not
+safe for that.
 
 ## What runs, what waits, what is refused
 
@@ -112,6 +140,16 @@ most 16 KiB in all, with no control or invisible character but tab.
 | no rule matches, `exec = false` | refused, `E_NOT_ALLOWED`; nothing runs |
 | no rule matches, `exec = true` | a ticket (risk `write`, `prod-write` on production), decided by the human |
 | `unmask` (output in clear) | only once the human allowed it in the console (`:unmask` or `--allow-unmask`); then a ticket (risk `read-pii`), never decided by an auto rule |
+
+On a production profile, `auto.exec = "auto"` (and `auto = "full-auto"`)
+is refused when the policy loads: a command outside the allow list is a
+write, and a write on production is always a human's decision.
+
+The remote line is `exec` followed by the quoted argv (`exec 'systemctl'
+'status' 'nginx'`): `exec` runs argv[0] as a file on the host's `PATH`,
+never as a shell builtin, keyword, alias or function, and nothing after it
+in the line can run. An argv[0] that starts with `-` or `+` is refused
+(`E_BAD_ARGV`).
 
 A ticket goes to lockhub: the agent gets `pending` with the ticket id, ends
 its turn, and runs the same argv again with `ticket` once told it is
@@ -136,6 +174,27 @@ URL userinfo...) become `⟦secret⟧`. Invalid UTF-8 becomes U+FFFD. What
 the detectors do not recognise (names, addresses in free text, file
 contents of unknown shapes) is **not** masked: choose the allow list
 accordingly. See [docs/security-model.md](security-model.md).
+
+### PII rules
+
+`.lockssh/pii.toml` (or `pii.toml` next to the user config) adds rules of
+the project's own, through the reviewed policy:
+
+```toml
+# Masked in every output, whatever the detectors say (RE2; must not match "").
+[[mask]]
+pattern = 'cust-[0-9]{6}'
+
+# A detected value kept in clear: a detector's kind (never secret) and the value.
+[[allow]]
+kind = "email"
+value = "support@example.com"
+```
+
+What a mask rule matches becomes `⟦mask:…⟧`. The agent may add a mask rule
+(`lockssh_pii_add`, `lockssh pii add`): it masks more, so it applies at
+once and is appended to the file. A new allow rule, or a removed mask
+rule, shows more: it waits for the human in the console (`:review`).
 
 ## Auto rules
 
@@ -174,6 +233,8 @@ output.
 |---|---|---|
 | `lockssh status` | `lockssh_status` | the console of each profile, its allow rules, exec, the SSH account |
 | `lockssh run [--intent T] [--dry-run] [--ticket T] [--unmask] [--] PROGRAM [ARG]...` | `lockssh_run` (`argv`, `intent`, `dry_run`, `ticket`, `unmask`) | run a command; flags come before the program |
+| `lockssh pii list` | `lockssh_pii_list` | the PII mask and allow rules in force |
+| `lockssh pii add "REGEXP"` | `lockssh_pii_add` (`pattern`) | add a mask rule: masks more, applied at once |
 | `lockssh request "CHANGE"` | `lockssh_request_change` | queue a policy change for the human |
 | `lockssh logout` | | end the console session |
 | `lockssh mcp` | | the MCP server on stdin/stdout |
@@ -194,6 +255,10 @@ lockssh init claude
 lockssh doctor --fix --yes --json
 ```
 
+`lockssh version --json` prints `{"name":"lockssh","version":"…","protocol_major":1}`:
+the console protocol's major, which lea's `locks.lock` and lockhub's
+contract tests read.
+
 `profile add` never takes, asks for or writes a secret; an existing
 profile is never rewritten (`exists`). `init <agent>` wires Claude Code,
 Codex, Cursor or Gemini CLI in the project. `doctor` checks the config,
@@ -204,7 +269,7 @@ wiring.
 
 | Code | Meaning | What to do |
 |---|---|---|
-| `E_BAD_ARGV` | empty program, control character, too many or too long arguments | rewrite the argv |
+| `E_BAD_ARGV` | empty program or one starting with `-`/`+`, control character, too many or too long arguments | rewrite the argv |
 | `E_NOT_ALLOWED` | no allow rule matches and exec is off | use an allowed command, or ask the user for a rule |
 | `E_AUTO_DENIED` | the profile's auto rules deny this action | only the user changes them |
 | `E_UNMASK_OFF` | clear output is off in this console | work with the masked output, or ask the user |

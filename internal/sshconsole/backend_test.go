@@ -38,7 +38,7 @@ func TestAllowListedRunsMasked(t *testing.T) {
 		t.Errorf("pseudonyms moved: %q vs %q", again.Stdout, out.Stdout)
 	}
 	got := r.host.received()
-	if len(got) < 2 || got[len(got)-1] != "'uptime'" {
+	if len(got) < 2 || got[len(got)-1] != "exec 'uptime'" {
 		t.Errorf("lines %q", got)
 	}
 	log := r.auditLog()
@@ -57,7 +57,7 @@ func TestShellSyntaxIsLiteral(t *testing.T) {
 		t.Errorf("stdout %q", out.Stdout)
 	}
 	got := r.host.received()
-	if want := `'echo' 'a; rm -rf /' '$(id)' 'it'\''s' '` + "`x`" + `' '|' '>f'`; got[len(got)-1] != want {
+	if want := `exec 'echo' 'a; rm -rf /' '$(id)' 'it'\''s' '` + "`x`" + `' '|' '>f'`; got[len(got)-1] != want {
 		t.Errorf("line %q, want %q", got[len(got)-1], want)
 	}
 }

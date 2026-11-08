@@ -220,8 +220,10 @@ func (b *Backend) screen(pp *prep, intent string) *console.Screen {
 		Body:     body,
 		Warnings: warn,
 		// Only an auto rule lets `lox run` approve without a question; an
-		// unmasked output is a human's decision whatever the rule.
-		NeverAuto: pr.Auto.Rule(pp.action) == config.AutoAsk || pp.unmask,
+		// unmasked output and a write on production (exec) are a human's
+		// decision whatever the rule (the policy refuses auto.exec = auto
+		// on production; this holds even if it did not).
+		NeverAuto: pr.Auto.Rule(pp.action) == config.AutoAsk || pp.unmask || (pr.Production && pp.action == config.ActExec),
 		Red:       pp.unmask || pp.action == config.ActExec,
 	}
 	return sc
@@ -349,7 +351,9 @@ func (b *Backend) output(env console.Env, pp *prep, res execResult) Output {
 		// Fail closed: the approved detectors parsed when approved.
 		ds = pii.AllDetectors()
 	}
-	m := outmask.New(ds, b.epoch)
+	// A rule that does not compile masks every output whole (fail closed;
+	// the rules in force parsed when they were approved).
+	m, _ := outmask.New(ds, b.epoch).WithRules(pp.pol.Mask, pp.pol.Allow)
 	o, e := m.Mask(string(res.stdout)), m.Mask(string(res.stderr))
 	out.Stdout, out.Stderr = o.Text, e.Text
 	for k, n := range e.Kinds {
