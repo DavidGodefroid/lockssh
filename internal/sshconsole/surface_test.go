@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -94,6 +95,37 @@ func TestPIIRules(t *testing.T) {
 		if resp := r.call(ipc.MethodPIIAdd, ipc.PIIAddParams{Pattern: bad}); resp.Error == nil {
 			t.Errorf("%q accepted", bad)
 		}
+	}
+}
+
+// An agent cannot make the console unable to load its policy: pii.add of
+// a rule already in the file is a no-op, an add beyond the cap is refused
+// with an error, and after 300 attempts the policy still loads.
+func TestPIIAddCapped(t *testing.T) {
+	r := newRig(t, rigOpts{pii: "[[allow]]\nkind = \"ip\"\nvalue = \"8.8.8.8\"\n"})
+	refused := 0
+	for i := range 300 {
+		pattern := "ord-[0-9]{" + strconv.Itoa(i%250+1) + "}"
+		if resp := r.call(ipc.MethodPIIAdd, ipc.PIIAddParams{Pattern: pattern}); resp.Error != nil {
+			refused++
+			if strings.Contains(resp.Error.Message, "ord-") {
+				t.Errorf("error quotes the rule: %q", resp.Error.Message)
+			}
+		}
+	}
+	if refused == 0 {
+		t.Error("no add refused beyond the cap")
+	}
+	path := filepath.Join(r.root, ".lockssh", "pii.toml")
+	rules, err := config.LoadPII(path)
+	if err != nil {
+		t.Fatalf("rules file no longer loads: %v", err)
+	}
+	if n := len(rules.Mask) + len(rules.Allow); n != config.MaxPIIRules {
+		t.Errorf("%d rules, want %d", n, config.MaxPIIRules)
+	}
+	if _, err := r.be.LoadPolicy(); err != nil {
+		t.Errorf("policy no longer loads: %v", err)
 	}
 }
 

@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -92,6 +93,64 @@ func TestLoadPIIAndAppend(t *testing.T) {
 	}
 	if got := PIIPath("", "/u/config.toml"); got != filepath.Join("/u", PIIFile) {
 		t.Errorf("PIIPath %q", got)
+	}
+}
+
+// AppendMask adds a rule once: a rule already in the file (as its
+// canonical text) is not written again, and an add beyond MaxPIIRules
+// (mask and allow rules together) is refused, so the file always loads.
+func TestAppendMaskDedupeAndCap(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, ".lockssh", PIIFile)
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte("[[mask]]\npattern = ' cust-[0-9]{6} '\n\n[[allow]]\nkind = \"ip\"\nvalue = \"10.0.0.1\"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	before, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for range 5 {
+		if err := AppendMask(path, "cust-[0-9]{6}"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if after, err := os.ReadFile(path); err != nil || string(after) != string(before) {
+		t.Fatalf("a rule in the file was written again: %q %v", after, err)
+	}
+	var capErr error
+	for i := range 300 {
+		pattern := "ord-[0-9]{" + strconv.Itoa(i+1) + "}"
+		if err := AppendMask(path, pattern); err != nil {
+			capErr = err
+			continue
+		}
+		if err := AppendMask(path, pattern); err != nil {
+			t.Fatalf("duplicate %d: %v", i, err)
+		}
+	}
+	if capErr == nil || !strings.Contains(capErr.Error(), "200") || strings.Contains(capErr.Error(), "ord-") {
+		t.Errorf("cap error %v", capErr)
+	}
+	r, err := LoadPII(path)
+	if err != nil {
+		t.Fatalf("the file no longer loads: %v", err)
+	}
+	if n := len(r.Mask) + len(r.Allow); n != MaxPIIRules {
+		t.Errorf("%d rules, want %d", n, MaxPIIRules)
+	}
+	// A rule already in the file is still a no-op at the cap.
+	if err := AppendMask(path, "cust-[0-9]{6}"); err != nil {
+		t.Errorf("duplicate at the cap: %v", err)
+	}
+	// A file the human made invalid is not appended to.
+	if err := os.WriteFile(path, []byte("[[mask]\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := AppendMask(path, "ord-[0-9]+"); err == nil {
+		t.Error("appended to a file that does not parse")
 	}
 }
 

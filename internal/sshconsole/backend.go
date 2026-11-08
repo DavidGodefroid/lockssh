@@ -145,7 +145,7 @@ func (b *Backend) PIIRules(p console.Policy) (mask, allow []string) {
 func (b *Backend) CheckMask(pattern string) (string, error) { return config.ParseMask(pattern) }
 
 // SaveMask implements console.PIIBackend: the rule is appended to the
-// rules file on disk.
+// rules file on disk, once, and never beyond config.MaxPIIRules.
 func (b *Backend) SaveMask(pattern string) error {
 	path := b.piiPath()
 	if path == "" {

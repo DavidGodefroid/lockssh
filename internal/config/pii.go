@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 	"unicode/utf8"
 
 	"github.com/BurntSushi/toml"
@@ -150,9 +151,34 @@ func PIIPath(root, userConfig string) string {
 	return ""
 }
 
+// appendMu serialises AppendMask: the count and the duplicate check stay
+// true until the rule is written.
+var appendMu sync.Mutex
+
 // AppendMask appends a mask rule (canonical, ParseMask) to the rules file
-// as it is on disk, creating it.
+// as it is on disk, creating it. A rule already in the file is a no-op;
+// an add that would take the file beyond MaxPIIRules (mask and allow rules,
+// as LoadPII counts them) is refused, and so is an add to a file that does
+// not parse: the file always stays loadable.
 func AppendMask(path, pattern string) error {
+	appendMu.Lock()
+	defer appendMu.Unlock()
+	data, err := os.ReadFile(path)
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return fmt.Errorf("pii rules: %w", err)
+	}
+	var raw rawPII
+	if _, err := kconfig.Decode(product.P, data, path, &raw); err != nil {
+		return err
+	}
+	for _, r := range raw.Mask {
+		if strings.TrimSpace(r.Pattern) == pattern {
+			return nil
+		}
+	}
+	if len(raw.Mask)+len(raw.Allow) >= MaxPIIRules {
+		return fmt.Errorf("pii rules: the rules file holds %d rules, the most it may: ask the human to remove some from %s", MaxPIIRules, PIIFile)
+	}
 	var buf bytes.Buffer
 	if err := toml.NewEncoder(&buf).Encode(rawPII{Mask: []rawMask{{Pattern: pattern}}}); err != nil {
 		return fmt.Errorf("pii rules: %w", err)
