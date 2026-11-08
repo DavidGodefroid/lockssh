@@ -56,6 +56,11 @@ console framework holds it; lockssh adds the SSH side.
   its arguments (`find -exec`, `awk`, `less`, `vim`, `tar`, `sudo`, `env`,
   `sh -c`, `xargs`, `git` with hooks) turns a narrow rule into a shell. Allow
   such programs only with literal arguments, never with `*` or `**`.
+  [decisions.md](decisions.md#programs-that-run-code-from-their-arguments)
+  lists them; a later release warns on such a rule and keeps globs off
+  options and `..` segments.
+- **It does not resolve paths on the host.** A rule's path is text: a
+  symlink under an allowed directory reads wherever it points.
 - **It does not confine the SSH account.** What a command can do is what
   the account can do. Use an account of its own with only the rights the
   allow list needs; a root login is refused on production and asks a typed

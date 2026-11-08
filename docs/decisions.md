@@ -21,7 +21,7 @@ states the resulting promise; [usage.md](usage.md) the configuration.
 | Question | Decision | Rationale |
 |---|---|---|
 | What runs on the host | **One argv per request**, in an SSH session of its own: no PTY, no stdin, no environment from the agent, no port, agent or X11 forwarding, no subsystem. Never an interactive shell. | A session per command keeps each run bounded and audited on its own; without PTY and stdin nothing can turn it into a shell. |
-| Free reads | **The profile's allow list.** A command an allow rule matches runs at once when `auto.run = "auto"` (the default): the human approved the list in the policy review. A rule is a literal program and one pattern per argument (`*`, `?`, `[`, never `/`), a last `**` for the rest. | Free reads are what makes the lock useful (status, logs, counts); the list is the human's and the program is never a glob. |
+| Free reads | **The profile's allow list.** A command an allow rule matches runs at once when `auto.run = "auto"` (the default): the human approved the list in the policy review. A rule is a literal program and one pattern per argument (`*`, `?`, `[`; `*` and `?` never match `/`), a last `**` for the rest. **Change (#4):** a glob never matches an option (an argument starting with `-`) or a `.`/`..` path segment; see [Allow-rule globs](#allow-rule-globs). | Free reads are what makes the lock useful (status, logs, counts); the list is the human's and the program is never a glob. |
 | Other commands | **Refused (`E_NOT_ALLOWED`)**, or on a profile with `exec = true` a ticket for the human (`lox run`), bound to the argv, the agent and the policy fingerprint, run once. `exec` is off by default. | A command outside the list may change the host: it is a write. |
 | File transfer (scp, sftp) | **Out of scope.** lockssh opens no subsystem and has no upload or download verb. SFTP reads are lockfile's (an `sftp` source); a file the agent needs to write goes through a command on an `exec` ticket. | lockfile already masks and gates file reads; a second path would need its own rules for paths and sizes. |
 | MCP tools | `lockssh_status`, `lockssh_run` (with `unmask` for a clear-output ticket), `lockssh_request_change`; **add** `lockssh_pii_list` and `lockssh_pii_add` (#4). No separate host or unmask tool: status lists the profiles, unmask is a property of a run. | As the sibling locks; the PII allow list is the one piece of locksql's surface lockssh still lacks. |
@@ -86,11 +86,82 @@ lockssh lock type in lox, its compose and its egress are lockhub#133.
   written `'\''`): `;`, `|`, `$(…)`, `*` stay literal arguments of argv[0].
 - An allow rule matches the argv, not the line, so a quoted `;` never
   makes a second command match.
-- What a program does with its arguments is outside the lock's reach:
-  `sh -c`, `find -exec`, `xargs`, `awk`, `env`, `sudo`, editors and pagers
-  turn a pattern into a shell. **Change (#4): the policy review warns on
-  an allow rule that gives such a program a `*` or `**`** (it is the
-  human's call; v0.1.0 only documents it).
+- What a program does with its arguments is outside the lock's reach.
+  The two rules below take the generic routes away (an option the human
+  never wrote, a path that climbs out); the warning after them covers the
+  programs whose plain operands are code.
+
+## Allow-rule globs
+
+In v0.1.0 a glob token is [path.Match](https://pkg.go.dev/path#Match) on
+the whole argument: `*` and `?` stop at `/`, nothing else. That lets a
+"free read" (`auto.run = "auto"`) write or climb out:
+
+| Rule | Argument the agent sends | Effect |
+|---|---|---|
+| `git log *` | `--output=/home/u/.bashrc` | writes a file |
+| `journalctl *` | `--vacuum-time=1s` | deletes the journal |
+| `tar -tf *` | `--to-command=sh` | runs a command |
+| `cat /var/log/*/*/*` | `/var/log/../../etc/shadow` | each `*` matches one `..` |
+| `ls *` | `..` | lists the parent |
+
+**Change (#4), both in `internal/command` (`Rule.Match`), for every glob
+token (`*`, `?`, `[…]`) and for every argument a last `**` covers:**
+
+1. **No options.** A glob never matches an argument that starts with `-`,
+   unless the token itself starts with `-` (`--since=*` matches
+   `--since=today`; `-*` matches any option, and the policy review warns
+   on it, below). An option the agent may set is one the human wrote.
+   Exception: after a literal `--` token in the rule, globs and `**` match
+   operands, and an operand may start with `-` (the program reads
+   everything after `--` as an operand). `**` without a literal `--`
+   before it matches no option either: `echo **` allows `echo a b`, not
+   `echo -e a`.
+2. **No `.` or `..` segments.** A glob-matched argument, split on `/`, is
+   refused when a segment the glob covers is `.` or `..`. A segment the
+   rule spells literally is the human's (`cat ../x` allows `../x`).
+   `cat /var/log/*/*/*` then allows `/var/log/nginx/old/error.log`, never
+   `/var/log/../../etc`. Symlinks on the host are outside the lock's
+   reach: a link under `/var/log` reads wherever it points (the security
+   model says so).
+
+A refusal is the usual `E_NOT_ALLOWED`; with `exec = true` the command
+becomes an `exec` ticket like any other unlisted command. The policy
+review shows the rules unchanged. The comment in `Rule.Match` said `*`
+keeps `/var/log/*` from reaching `/var/log/../../etc/shadow`: true for one
+`*`, not for `/var/log/*/*/*`; this PR corrects the comment, #4 the
+behaviour. #4 updates
+[usage.md](usage.md)'s glob table and examples with the two rules and adds
+their tests (a table of the arguments above, each refused).
+
+## Programs that run code from their arguments
+
+The two rules close options and climbing; they cannot close a program
+whose plain operand is a program or a script (`sed -n * f` with `1e id`,
+`awk *` with `BEGIN{system("id")}`, `env *` with `sh`). **Change (#4): the
+policy review warns on an allow rule that names one of these programs
+with any glob or `**`**, and on any rule, whatever its program, that
+lets a glob choose an option: a token starting with `-` whose glob
+character comes before any `=` (`-*`, `--*`, `-[a-z]`), or a glob or `**`
+after a literal `--`. It is a
+warning, the human's call, as v0.1.0's documentation already says; the
+list is a fixed table in `internal/command`, matched on the program's base
+name (`/usr/bin/sed` is `sed`) and tested.
+
+| Kind | Programs | Route |
+|---|---|---|
+| Shells and interpreters | `sh`, `bash`, `dash`, `ksh`, `zsh`, `fish`, `csh`, `tcsh`, `busybox`, `perl`, `python`, `python3`, `ruby`, `node`, `php`, `lua`, `tclsh`, `Rscript` | `-c`/`-e` or a script operand |
+| Text tools with a command or write verb | `sed` (`e`, `w`, `s///e`), `awk`, `gawk`, `mawk`, `nawk` (`system()`, `print >`), `ed`, `ex` | the script operand |
+| Runners of another argv | `env`, `sudo`, `su`, `doas`, `pkexec`, `xargs`, `nice`, `nohup`, `timeout`, `stdbuf`, `time`, `watch`, `setsid`, `flock`, `chroot`, `nsenter`, `unshare`, `ionice`, `taskset`, `strace`, `ltrace`, `gdb`, `script` | the rest of the argv |
+| Find and archive | `find` (`-exec`, `-execdir`, `-ok`, `-fprint`, `-delete`), `tar` (`--to-command`, `--checkpoint-action`, `-I`/`--use-compress-program`), `zip` (`-TT`), `rsync` (`-e`, `--rsync-path`) | options (closed by rule 1, unless a token starts with `-`) and actions |
+| Network clients | `ssh`, `scp`, `sftp` (`-oProxyCommand=…`, `LocalCommand`; `*` matches spaces), `curl`, `wget` (`-o`/`-O` write) | options and URLs |
+| Version control and builds | `git` (`-c core.pager=…`, `core.sshCommand`, `--upload-pack`, aliases, hooks), `make`, `npm`, `pip` | configuration and the project's own scripts |
+| Pagers, editors, viewers | `less`, `more`, `man` (`-P`), `vi`, `vim`, `nvim`, `emacs`, `nano`, `view` | `!` and editor commands, `LESSOPEN` |
+| Orchestrators | `docker`, `podman`, `kubectl`, `systemctl`, `crontab`, `at`, `tcpdump` (`-z`) | `exec`, `run`, unit or job definitions |
+
+Rule 1 closes most of the option routes in the table by itself; the
+warning stays for the ones it cannot (operands that are code, a rule that
+writes `-*` or a literal `--` before a glob).
 
 ## Image ids
 
@@ -111,7 +182,7 @@ Streaming is not needed (above). What lockssh still needs is lox support
 | Issue | State after v0.1.0 | Left |
 |---|---|---|
 | #3 Console | Shipped (`internal/config`, `internal/sshconsole`, hub mode, audit; `hub_test.go`, `integration_test.go`) | nothing beyond #4's changes |
-| #4 Agent surface | Shipped but for the items marked change | `lockssh_pii_list` / `lockssh_pii_add` and `.lockssh/pii.toml` through the reviewed policy; production `auto.exec` refusal; allow-rule warning; leak, injection and equivalence suites named as locklog#63 |
+| #4 Agent surface | Shipped but for the items marked change | `lockssh_pii_list` / `lockssh_pii_add` and `.lockssh/pii.toml` through the reviewed policy; production `auto.exec` refusal; globs that match no option and no `.`/`..` segment; the policy-review warning on code-running programs and option globs; leak, injection and equivalence suites named as locklog#63 |
 | #5 Launcher verbs | Shipped | `lockssh version --json` with the protocol number lea's `locks.lock` and lockhub's contract tests read |
 | #6 Release | v0.1.0 tagged and published, image signed, tap dispatched | the next pre-release with #4 and #5 |
 | #7 Docs and site | README, security model, usage, Docker, demo, banners | `site/`, `pages.yml`, `scripts/check-site.py`, domain |
