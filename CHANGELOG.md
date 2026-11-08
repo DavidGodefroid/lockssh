@@ -25,6 +25,10 @@ All notable changes to lockssh. The format follows
   `npx`, `yarn`, `java`, `jshell`), on a glob that chooses an option, and on
   a glob after a literal `--` (#4).
 - `lockssh version --json` with the console protocol major (#5).
+- Golden tests of every launcher verb's output that `lox add` reads
+  (`version --json`, `profile add --json` and its refusals, `profile rules
+  --json`, `doctor --json`, `doctor --fix --yes --json`, `init claude`), in
+  `cmd/lockssh/testdata/` (#5).
 
 ### Changed
 
