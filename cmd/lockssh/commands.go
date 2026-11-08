@@ -151,6 +151,7 @@ var clientUsage = map[string]struct {
 	"status":  {"lockssh status [--profile P] [--instance NAME] [--json]", 0},
 	"run":     {"lockssh run [--intent TEXT] [--unmask] [--dry-run] [--ticket T] [--profile P] [--instance NAME] [--json] [--] PROGRAM [ARG]...", -1},
 	"request": {`lockssh request "CHANGE" [--profile P] [--instance NAME] [--json]`, 1},
+	"pii":     {`lockssh pii list | add "REGEXP" [--profile P] [--instance NAME] [--json]`, -1},
 	"logout":  {"lockssh logout [--profile P] [--instance NAME] [--json]", 0},
 }
 
@@ -184,7 +185,10 @@ func runClient(e env, cmd string, args []string) int {
 	if (u.positional >= 0 && len(pos) != u.positional) || (u.positional < 0 && len(pos) == 0) {
 		return usageFail(e, cmd, u.usage, "wrong number of arguments")
 	}
-	method, params, what := request(cmd, pos, o)
+	method, params, what, err := request(cmd, pos, o)
+	if err != nil {
+		return usageFail(e, cmd, u.usage, err.Error())
+	}
 	instance, err := resolveInstance(o.instance)
 	if err != nil {
 		return usageFail(e, cmd, u.usage, err.Error())
@@ -215,20 +219,28 @@ func runClient(e env, cmd string, args []string) int {
 }
 
 // request turns a command into the console call.
-func request(cmd string, pos []string, o cliOpts) (method string, params any, what string) {
+func request(cmd string, pos []string, o cliOpts) (method string, params any, what string, err error) {
 	switch cmd {
 	case "status":
-		return ipc.MethodStatus, nil, ""
+		return ipc.MethodStatus, nil, "", nil
 	case "logout":
-		return ipc.MethodLogout, nil, ""
+		return ipc.MethodLogout, nil, "", nil
 	case "request":
-		return ipc.MethodChangeRequest, ipc.ChangeParams{Change: pos[0]}, ""
+		return ipc.MethodChangeRequest, ipc.ChangeParams{Change: pos[0]}, "", nil
+	case "pii":
+		switch {
+		case len(pos) == 1 && pos[0] == "list":
+			return ipc.MethodPIIList, nil, "", nil
+		case len(pos) == 2 && pos[0] == "add":
+			return ipc.MethodPIIAdd, ipc.PIIAddParams{Pattern: pos[1]}, "", nil
+		}
+		return "", nil, "", errors.New(`want "list" or "add REGEXP"`)
 	}
 	p := mcptools.Params(mcptools.RunIn{Argv: pos, Intent: o.intent, Unmask: o.unmask, Ticket: o.ticket})
 	if o.dryRun {
-		return sshconsole.MethodPlan, p, ""
+		return sshconsole.MethodPlan, p, "", nil
 	}
-	return sshconsole.MethodRun, p, "results"
+	return sshconsole.MethodRun, p, "results", nil
 }
 
 // callFail reports a console error: a refusal or denial (exit 1), a closed

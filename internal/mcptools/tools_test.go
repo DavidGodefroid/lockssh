@@ -59,6 +59,26 @@ func text(r *mcp.CallToolResult) string {
 	return b.String()
 }
 
+// lockssh_pii_list and lockssh_pii_add call the console's pii.list and
+// pii.add.
+func TestPIITools(t *testing.T) {
+	conn := &fakeConn{answer: `{"mask":["cust-[0-9]{6}"],"allow":["ip:8.8.8.8"]}`}
+	cs := session(t, conn)
+	for _, c := range []struct {
+		name string
+		args map[string]any
+	}{{ToolPIIList, nil}, {ToolPIIAdd, map[string]any{"pattern": "cust-[0-9]{6}"}}} {
+		res, err := cs.CallTool(context.Background(), &mcp.CallToolParams{Name: c.name, Arguments: c.args})
+		if err != nil || res.IsError || !strings.Contains(text(res), "cust-[0-9]{6}") {
+			t.Fatalf("%s: %v %+v", c.name, err, res)
+		}
+	}
+	want := []string{`pii.list null`, `pii.add {"pattern":"cust-[0-9]{6}"}`}
+	if !slices.Equal(conn.calls, want) {
+		t.Errorf("calls %q", conn.calls)
+	}
+}
+
 func TestToolsListed(t *testing.T) {
 	cs := session(t, &fakeConn{})
 	res, err := cs.ListTools(context.Background(), nil)
@@ -78,6 +98,9 @@ func TestToolsListed(t *testing.T) {
 }
 
 func TestRunFramesAndPending(t *testing.T) {
+	// Run inside an agent, these would add a requester to the call.
+	t.Setenv("LEA_AGENT", "")
+	t.Setenv("LEA_AGENT_TOKEN", "")
 	conn := &fakeConn{answer: `{"untrusted":"x","data":{"command":"uptime","action":"run","exit_status":0,"stdout":"up","stderr":""}}`}
 	cs := session(t, conn)
 	res, err := cs.CallTool(context.Background(), &mcp.CallToolParams{Name: ToolRun, Arguments: map[string]any{"argv": []string{"uptime"}, "intent": "why"}})

@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"slices"
 	"sync"
 	"time"
 
@@ -113,7 +114,57 @@ func (b *Backend) LoadPolicy() (console.Policy, error) {
 	if !ok {
 		return nil, fmt.Errorf("no profile %q in the config files", b.o.Profile)
 	}
-	return Policy{config.NewPolicy(pr)}, nil
+	pol := config.NewPolicy(pr)
+	if path := b.piiPath(); path != "" {
+		r, err := config.LoadPII(path)
+		if err != nil {
+			return nil, err
+		}
+		pol = pol.WithPII(r)
+	}
+	return Policy{pol}, nil
+}
+
+// piiPath is the PII rules file of the console's profile ("" for none).
+func (b *Backend) piiPath() string { return config.PIIPath(b.o.Root, b.o.UserConfig) }
+
+var _ console.PIIBackend = (*Backend)(nil)
+
+// PIIRules implements console.PIIBackend: the mask and allow rules of the
+// policy (.lockssh/pii.toml).
+func (b *Backend) PIIRules(p console.Policy) (mask, allow []string) {
+	pol, ok := p.(Policy)
+	if !ok {
+		return nil, nil
+	}
+	return slices.Clone(pol.Mask), slices.Clone(pol.Allow)
+}
+
+// CheckMask implements console.PIIBackend: a mask rule is a regular
+// expression (RE2) that does not match the empty string.
+func (b *Backend) CheckMask(pattern string) (string, error) { return config.ParseMask(pattern) }
+
+// SaveMask implements console.PIIBackend: the rule is appended to the
+// rules file on disk, once, and never beyond config.MaxPIIRules.
+func (b *Backend) SaveMask(pattern string) error {
+	path := b.piiPath()
+	if path == "" {
+		return errors.New("no rules file: start the console in a project")
+	}
+	m, err := config.ParseMask(pattern)
+	if err != nil {
+		return err
+	}
+	return config.AppendMask(path, m)
+}
+
+// WithMask implements console.PIIBackend.
+func (b *Backend) WithMask(p console.Policy, pattern string) console.Policy {
+	pol, ok := p.(Policy)
+	if !ok {
+		return p
+	}
+	return Policy{pol.WithPII(config.PIIRules{Mask: append(slices.Clone(pol.Mask), pattern), Allow: pol.Allow})}
 }
 
 // inForce is the approved policy (the console saves it before it

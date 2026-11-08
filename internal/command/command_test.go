@@ -11,7 +11,7 @@ func TestQuoteAndLine(t *testing.T) {
 			t.Errorf("Quote(%q) = %q, want %q", in, got, want)
 		}
 	}
-	if got := Line([]string{"echo", "a;b", "'"}); got != `'echo' 'a;b' ''\'''` {
+	if got := Line([]string{"echo", "a;b", "'"}); got != `exec 'echo' 'a;b' ''\'''` {
 		t.Errorf("Line = %q", got)
 	}
 	if got := Display([]string{"journalctl", "-u", "nginx", "a b", ""}); got != "journalctl -u nginx 'a b' ''" {
@@ -134,7 +134,11 @@ func FuzzLineRoundTrip(f *testing.F) {
 	}
 	f.Fuzz(func(t *testing.T, a, b, c string) {
 		argv := []string{a, b, c}
-		got, ok := unquote(Line(argv))
+		line, ok := strings.CutPrefix(Line(argv), "exec ")
+		if !ok {
+			t.Fatalf("%q: no exec", argv)
+		}
+		got, ok := unquote(line)
 		if !ok || len(got) != len(argv) {
 			t.Fatalf("%q: %q %v", argv, got, ok)
 		}

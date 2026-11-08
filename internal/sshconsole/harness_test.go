@@ -129,7 +129,11 @@ func (h *fakeHost) session(ch ssh.Channel, reqs <-chan *ssh.Request) {
 					}
 				}
 			}()
-			argv, ok := splitQuoted(cmd.Command)
+			// command.Line runs argv[0] through exec: a line without it
+			// could run a builtin of argv[0]'s name.
+			line, ok := strings.CutPrefix(cmd.Command, "exec ")
+			argv, quoted := splitQuoted(line)
+			ok = ok && quoted
 			status, sig := 127, ""
 			if ok {
 				status, sig = h.program(ch, argv, killed)
@@ -295,6 +299,7 @@ type rig struct {
 type rigOpts struct {
 	production               bool
 	extra                    string // more profile lines
+	pii                      string // .lockssh/pii.toml
 	allow                    []string
 	exec                     bool
 	answers                  []string
@@ -347,6 +352,11 @@ func writeProject(t *testing.T, root, home string, host *fakeHost, o rigOpts) {
 	dir := filepath.Join(root, ".lockssh")
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		t.Fatal(err)
+	}
+	if o.pii != "" {
+		if err := os.WriteFile(filepath.Join(dir, "pii.toml"), []byte(o.pii), 0o600); err != nil {
+			t.Fatal(err)
+		}
 	}
 	if err := os.WriteFile(filepath.Join(dir, "config.toml"), []byte(cfg), 0o600); err != nil {
 		t.Fatal(err)

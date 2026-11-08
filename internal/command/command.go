@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"path"
+	"slices"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -55,6 +56,10 @@ func Check(argv []string) error {
 	if argv[0] == "" {
 		return errors.New("argument 1 (the program) is empty")
 	}
+	if isOption(argv[0]) {
+		// exec would read it as one of its own options (exec -c, exec -a).
+		return errors.New("argument 1 (the program) must not start with '-' or '+'")
+	}
 	return nil
 }
 
@@ -63,15 +68,18 @@ func Quote(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 }
 
-// Line is the remote command line of argv: every argument quoted. The
-// server's login shell reads it; it cannot run anything but argv[0] with
-// argv[1:] as its arguments.
+// Line is the remote command line of argv: exec, then every argument
+// quoted. The server's login shell reads it; exec looks argv[0] up on the
+// PATH and runs that file, never a builtin, keyword, alias or function of
+// that name (`exec 'eval' 'id;rm x'` fails with 127), and the shell is
+// replaced by the program, so nothing else in the line can run. Check
+// keeps argv[0] from starting with '-' or '+', an option of exec.
 func Line(argv []string) string {
 	q := make([]string, len(argv))
 	for i, a := range argv {
 		q[i] = Quote(a)
 	}
-	return strings.Join(q, " ")
+	return "exec " + strings.Join(q, " ")
 }
 
 // Display is argv for a screen: arguments that need quoting are quoted,
@@ -120,6 +128,9 @@ func ParseRule(s string) (Rule, error) {
 	if isGlob(f[0]) || f[0] == "**" {
 		return Rule{}, errors.New("an allow rule's first token (the program) must be a literal, not a glob")
 	}
+	if builtinOnly[f[0]] {
+		return Rule{}, errors.New("an allow rule's program is a shell builtin or keyword: the console runs argv[0] through exec, as a file on the host's PATH, so the rule could only fail")
+	}
 	r := Rule{text: strings.Join(f, " ")}
 	for i, t := range f {
 		if t == "**" {
@@ -144,29 +155,68 @@ func ParseRule(s string) (Rule, error) {
 
 func isGlob(t string) bool { return strings.ContainsAny(t, "*?[") }
 
-// Match reports whether argv matches the rule.
+// Match reports whether argv matches the rule. A literal token matches
+// the same argument. A glob token (path.Match: * and ? never match "/")
+// and a last ** match under two more rules (docs/decisions.md, "Allow-rule
+// globs"):
+//
+//  1. no option: an argument starting with '-' or '+' matches a glob token
+//     starting with the same character only, and never **, unless a literal
+//     "--" token comes before the glob in the rule (the program reads what
+//     follows "--" as operands);
+//  2. no climbing: a "." or ".." path segment a glob covers is refused,
+//     every segment of an argument ** covers included, after "--" too.
 func (r Rule) Match(argv []string) bool {
 	if len(argv) < len(r.tokens) || (!r.rest && len(argv) != len(r.tokens)) {
 		return false
 	}
+	operands := false
 	for i, t := range r.tokens {
 		a := argv[i]
 		if !isGlob(t) {
 			if a != t {
 				return false
 			}
+			operands = operands || t == "--"
 			continue
 		}
-		// path.Match: * and ? never match "/", but each still matches "..",
-		// so "/var/log/*/*/*" reaches "/var/log/../../etc", and a glob
-		// matches an option ("-..."). Both are refused in #4
-		// (docs/decisions.md, "Allow-rule globs").
+		if !operands && isOption(a) && t[0] != a[0] {
+			return false
+		}
 		ok, err := path.Match(t, a)
-		if err != nil || !ok {
+		if err != nil || !ok || climbs(t, a) {
+			return false
+		}
+	}
+	for _, a := range argv[len(r.tokens):] {
+		if (!operands && isOption(a)) || climbs("*", a) {
 			return false
 		}
 	}
 	return true
+}
+
+func isOption(a string) bool { return a != "" && (a[0] == '-' || a[0] == '+') }
+
+// climbs reports whether a, which glob t matched, holds a "." or ".."
+// segment a glob segment of t covers; t "*" stands for ** and covers every
+// segment. A segment t spells literally is the human's. Segments that do
+// not pair up (a class matching "/") climb: fail closed.
+func climbs(t, a string) bool {
+	as := strings.Split(a, "/")
+	ts := strings.Split(t, "/")
+	if t == "*" {
+		ts = slices.Repeat([]string{"*"}, len(as))
+	}
+	if len(ts) != len(as) {
+		return true
+	}
+	for i, s := range as {
+		if (s == "." || s == "..") && isGlob(ts[i]) {
+			return true
+		}
+	}
+	return false
 }
 
 // Rules is a list of allow rules.

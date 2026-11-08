@@ -290,6 +290,11 @@ func buildProfile(name string, r rawProfile, detectorsSet bool) (Profile, error)
 	if err != nil {
 		return Profile{}, errf("%v", err)
 	}
+	if r.Production && auto.Rule(ActExec) == AutoAuto {
+		// A write on production is always a human's decision: lox run's
+		// auto mode must never approve a prod-write ticket.
+		return Profile{}, errf(`auto.exec = "auto" (or auto = %q) is refused on a production profile: a command outside the allow list is a write, decided by a human; use "ask" or "deny"`, FullAuto)
+	}
 	p.Auto = auto.canonical()
 
 	applyDefaults(&p, detectorsSet)

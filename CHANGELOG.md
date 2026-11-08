@@ -12,8 +12,36 @@ All notable changes to lockssh. The format follows
   and the changes still to make (production `auto.exec`, globs that match
   no option and no `..` segment, the warning on programs that run code
   from their arguments, PII allow list, `version --json`).
+- PII rules in `.lockssh/pii.toml`, through the reviewed policy: mask rules
+  (RE2 regular expressions masked in every output, `⟦mask:…⟧`) and allow
+  rules (`kind:value`, a detected value kept in clear; never a secret).
+  `lockssh_pii_list` / `lockssh_pii_add` and `lockssh pii list|add`; adding
+  a mask rule applies at once, a new allow rule or a removed mask rule
+  waits for the policy review (#4).
+- The policy review warns on an allow rule that gives a glob or `**` to a
+  program that can run code, write or start another command from its
+  arguments (base name, version suffix stripped: `python3.11` is `python`;
+  the table of decisions.md plus `dd`, `tee`, `ash`, `yash`, `sudoedit`,
+  `npx`, `yarn`, `java`, `jshell`), on a glob that chooses an option, and on
+  a glob after a literal `--` (#4).
+- `lockssh version --json` with the console protocol major (#5).
 
 ### Changed
+
+- **Security (#4).** Globs and `**` in allow rules never match an argument
+  starting with `-` or `+` (unless the glob starts with the same character,
+  or follows a literal `--`) nor a `.`/`..` path segment they cover:
+  `git log *` no longer allows `--output=…`, `cat /var/log/*/*/*` no
+  longer reaches `/var/log/../../etc/shadow`, `less *` no longer `+!id`.
+- **Security (#4).** The remote line runs argv[0] through `exec`, so a rule
+  can never run a shell builtin (`eval`, `.`, `trap`…); an argv[0] starting
+  with `-` or `+` is refused (`E_BAD_ARGV`), and an allow rule naming a
+  builtin-only program is refused when the policy loads.
+- **Security (#4).** On a production profile, `auto.exec = "auto"` and
+  `auto = "full-auto"` are refused when the policy loads, and an exec
+  ticket on production is never auto-approved.
+- Overlapping masked values merge into one placeholder, so no byte of the
+  longer one shows.
 
 - Docs, agent assets, the launcher and the console's messages name `lox run`
   (`lox up` is deprecated since lockhub v0.10.0), and say that no lockhub

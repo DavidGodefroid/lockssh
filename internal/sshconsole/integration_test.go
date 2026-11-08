@@ -79,6 +79,14 @@ func TestOpenSSH(t *testing.T) {
 	if err != nil || res.exit == nil || *res.exit != 7 {
 		t.Errorf("exit 7: %+v %v", res, err)
 	}
+	// argv[0] goes through exec: a builtin of that name never runs, and
+	// nothing after it does (127: no such program on the PATH).
+	for _, b := range [][]string{{"eval", "echo pwned"}, {"builtin", "echo", "pwned"}, {".", "/dev/stdin"}, {"trap", "echo pwned", "EXIT"}} {
+		res, err := execute(context.Background(), tun, b, 1<<10)
+		if err != nil || strings.Contains(string(res.stdout), "pwned") || res.exit == nil || *res.exit == 0 {
+			t.Errorf("%q: %+v %v", b, res, err)
+		}
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 	start := time.Now()
