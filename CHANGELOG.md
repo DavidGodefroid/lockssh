@@ -6,6 +6,13 @@ All notable changes to lockssh. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- `docs/decisions.md`: what lockssh guards, what the agent may do over SSH,
+  and the changes still to make (production `auto.exec`, globs that match
+  no option and no `..` segment, the warning on programs that run code
+  from their arguments, PII allow list, `version --json`).
+
 ### Changed
 
 - Docs, agent assets, the launcher and the console's messages name `lox run`

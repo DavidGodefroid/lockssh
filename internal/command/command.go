@@ -157,8 +157,10 @@ func (r Rule) Match(argv []string) bool {
 			}
 			continue
 		}
-		// path.Match: * and ? never match "/", so "/var/log/*" does not
-		// reach "/var/log/../../etc/shadow".
+		// path.Match: * and ? never match "/", but each still matches "..",
+		// so "/var/log/*/*/*" reaches "/var/log/../../etc", and a glob
+		// matches an option ("-..."). Both are refused in #4
+		// (docs/decisions.md, "Allow-rule globs").
 		ok, err := path.Match(t, a)
 		if err != nil || !ok {
 			return false
