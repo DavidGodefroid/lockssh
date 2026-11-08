@@ -71,6 +71,10 @@ console framework holds it; lockssh adds the SSH side.
   run the agent in a container of its own without the Docker socket (lea)
   for that boundary.
 
+## Why it is built this way
+
+[decisions.md](decisions.md) gives each design decision and its rationale.
+
 ## Reporting
 
 See [SECURITY.md](../SECURITY.md).
