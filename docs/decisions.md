@@ -12,7 +12,7 @@ states the resulting promise; [usage.md](usage.md) the configuration.
 |---|---|
 | The console runs **apart from the agent**: its own account (`lockssh`, uid 10041) and container, started by `lox run` only (hub-attached, as every lock since lockkit v0.13). The agent reaches it through a socket in a read-only volume, as `lockssh-clients` (gid 10040), the image's `agent` (uid 10042) or an `--allowed-uids` uid; the kernel's peer credentials say who asks. | `Dockerfile`, `scripts/lockssh`, `cmd/lockssh/console.go` (lockkit `console.Run`) |
 | **The agent never holds the credential or the connection.** The key or password lives in the console account only; nothing the agent reads (socket volume, project, result, error, audit) carries it. | `internal/sshconsole/connect.go`, lockkit `tunnel`, `secrets`, `sanitize` |
-| **No shell from the agent.** An argv, never a command string; every argument quoted for a POSIX shell; control and invisible characters refused. | `internal/command` |
+| **No shell from the agent.** An argv, never a command string; every argument quoted for a POSIX shell and the line run through `exec`, so argv[0] is always a program on the host's `PATH`, never a shell builtin, keyword or function; control and invisible characters refused. | `internal/command` |
 | **Fail closed.** No approved policy, an unknown action, a host key that does not match, a server that closes without an exit status: refused. | `internal/config/auto.go` (`Rule`), `internal/sshconsole` |
 | **Every byte the agent reads is masked**, unless a human decided a clear-output ticket on a console where clear output is switched on. | `internal/outmask`, `internal/sshconsole/handlers.go` |
 
@@ -84,6 +84,29 @@ lockssh lock type in lox, its compose and its egress are lockhub#133.
   never its text (`E_BAD_ARGV`).
 - The remote command line is every argument in POSIX single quotes (`'`
   written `'\''`): `;`, `|`, `$(…)`, `*` stay literal arguments of argv[0].
+- **Change (#4): argv[0] is a literal program, never a shell builtin.**
+  The server's login shell reads the line, and quoting does not stop it
+  from running a builtin named by argv[0]: in v0.1.0 a rule `eval *` lets
+  the agent send `["eval", "id;rm x"]`, the line `'eval' 'id;rm x'`, and
+  `eval` runs `id` then `rm x`. The same goes for `exec`, `command`,
+  `builtin`, `.`, `source`, `trap`, `fc`, `enable`, `let`, `alias`,
+  `typeset`/`declare` and every other builtin that evaluates a string or
+  binds a name. So, in `internal/command`:
+  - `Line` writes `exec` before the quoted argv: `exec 'eval' 'id;rm x'`.
+    `exec` looks argv[0] up on the `PATH` and runs that file; it never runs
+    a builtin, keyword, alias or function of that name (there is no
+    `/usr/bin/eval`: the command fails, `exit_status` 127). The shell is
+    replaced by the program, so nothing after it in the line can run.
+  - `Validate` refuses an argv[0] that starts with `-` or `+`
+    (`E_BAD_ARGV`), so it is never read as an option of `exec` itself
+    (`exec -c`, `exec -a`).
+  - An allow rule whose program is a builtin-only name (the list above,
+    tested) is **refused when the policy loads**: under `exec` it could
+    only fail, and the human should see why.
+
+  What `exec` does not cover: the account's startup files (sshd's bash
+  reads `~/.bashrc`), its `PATH` and the files on it are the host's
+  configuration, outside the lock's reach.
 - An allow rule matches the argv, not the line, so a quoted `;` never
   makes a second command match.
 - What a program does with its arguments is outside the lock's reach.
@@ -104,16 +127,21 @@ the whole argument: `*` and `?` stop at `/`, nothing else. That lets a
 | `tar -tf *` | `--to-command=sh` | runs a command |
 | `cat /var/log/*/*/*` | `/var/log/../../etc/shadow` | each `*` matches one `..` |
 | `ls *` | `..` | lists the parent |
+| `less *` | `+!id` | runs a command |
 
 **Change (#4), both in `internal/command` (`Rule.Match`), for every glob
 token (`*`, `?`, `[…]`) and for every argument a last `**` covers:**
 
-1. **No options.** A glob never matches an argument that starts with `-`,
-   unless the token itself starts with `-` (`--since=*` matches
-   `--since=today`; `-*` matches any option, and the policy review warns
-   on it, below). An option the agent may set is one the human wrote.
+1. **No options.** A glob never matches an argument that starts with `-`
+   or `+`, unless the token itself starts with the same character
+   (`--since=*` matches `--since=today`, `+%*` matches `+%F`; `-*` matches
+   any option, and the policy review warns on it, below). `+` is in the
+   rule for every program, not for a list of them: `less +!id`,
+   `more +cmd`, `vim +'!id'` and `ex +cmd` run a command, and a rule that
+   wants one (`date +*`) is easy to write. An option the agent may set is
+   one the human wrote.
    Exception: after a literal `--` token in the rule, globs and `**` match
-   operands, and an operand may start with `-` (the program reads
+   operands, and an operand may start with `-` or `+` (the program reads
    everything after `--` as an operand). `**` without a literal `--`
    before it matches no option either: `echo **` allows `echo a b`, not
    `echo -e a`.
@@ -146,17 +174,30 @@ character comes before any `=` (`-*`, `--*`, `-[a-z]`), or a glob or `**`
 after a literal `--`. It is a
 warning, the human's call, as v0.1.0's documentation already says; the
 list is a fixed table in `internal/command`, matched on the program's base
-name (`/usr/bin/sed` is `sed`) and tested.
+name (`/usr/bin/sed` is `sed`) with a version suffix stripped: a last run
+of digits, `.`, `-` and `_` that starts with a digit (`python3.11`,
+`perl5.36`, `php8.2`, `node18`, `lua5.4`, `sqlite3` match `python`,
+`perl`, `php`, `node`, `lua`, `sqlite`). It is not a prefix match: `sh`
+must not match `shred`, nor `at` `attr`. Tested with those names.
+
+**The table is a safety net, not a complete list.** No list of programs
+can be: a host has its own interpreters, wrappers and tools, under names
+nobody can predict. A program missing from the table gets no warning, and
+that says nothing about it being safe. For every program in the table,
+and for any program whose arguments can be code, the rule stays **literals
+only**: the human writes each argument, no glob and no `**`. The warning
+reminds; it does not decide.
 
 | Kind | Programs | Route |
 |---|---|---|
-| Shells and interpreters | `sh`, `bash`, `dash`, `ksh`, `zsh`, `fish`, `csh`, `tcsh`, `busybox`, `perl`, `python`, `python3`, `ruby`, `node`, `php`, `lua`, `tclsh`, `Rscript` | `-c`/`-e` or a script operand |
+| Shells and interpreters | `sh`, `bash`, `dash`, `ksh`, `mksh`, `zsh`, `fish`, `csh`, `tcsh`, `busybox`, `perl`, `python`, `pypy`, `ruby`, `irb`, `node`, `nodejs`, `deno`, `bun`, `php`, `lua`, `luajit`, `tclsh`, `wish`, `expect`, `Rscript`, `R` | `-c`/`-e` or a script operand |
+| Database clients | `sqlite` (`sqlite3`: `.shell`, `.system`, `.output`), `mysql`, `mariadb` (`\!`, `system`), `psql` (`\!`, `\o \|`) | a statement or meta-command operand |
 | Text tools with a command or write verb | `sed` (`e`, `w`, `s///e`), `awk`, `gawk`, `mawk`, `nawk` (`system()`, `print >`), `ed`, `ex` | the script operand |
-| Runners of another argv | `env`, `sudo`, `su`, `doas`, `pkexec`, `xargs`, `nice`, `nohup`, `timeout`, `stdbuf`, `time`, `watch`, `setsid`, `flock`, `chroot`, `nsenter`, `unshare`, `ionice`, `taskset`, `strace`, `ltrace`, `gdb`, `script` | the rest of the argv |
+| Runners of another argv | `env`, `sudo`, `su`, `runuser`, `sg`, `newgrp`, `doas`, `pkexec`, `systemd-run`, `xargs`, `parallel`, `nice`, `chrt`, `nohup`, `timeout`, `stdbuf`, `time`, `watch`, `setsid`, `flock`, `chroot`, `nsenter`, `unshare`, `bwrap`, `firejail`, `ionice`, `taskset`, `strace`, `ltrace`, `gdb`, `script` | the rest of the argv |
 | Find and archive | `find` (`-exec`, `-execdir`, `-ok`, `-fprint`, `-delete`), `tar` (`--to-command`, `--checkpoint-action`, `-I`/`--use-compress-program`), `zip` (`-TT`), `rsync` (`-e`, `--rsync-path`) | options (closed by rule 1, unless a token starts with `-`) and actions |
 | Network clients | `ssh`, `scp`, `sftp` (`-oProxyCommand=…`, `LocalCommand`; `*` matches spaces), `curl`, `wget` (`-o`/`-O` write) | options and URLs |
 | Version control and builds | `git` (`-c core.pager=…`, `core.sshCommand`, `--upload-pack`, aliases, hooks), `make`, `npm`, `pip` | configuration and the project's own scripts |
-| Pagers, editors, viewers | `less`, `more`, `man` (`-P`), `vi`, `vim`, `nvim`, `emacs`, `nano`, `view` | `!` and editor commands, `LESSOPEN` |
+| Pagers, editors, viewers | `less`, `more`, `most`, `man` (`-P`), `vi`, `vim`, `nvim`, `emacs`, `nano`, `view` | `+cmd` (closed by rule 1), `!` and editor commands, `LESSOPEN` |
 | Orchestrators | `docker`, `podman`, `kubectl`, `systemctl`, `crontab`, `at`, `tcpdump` (`-z`) | `exec`, `run`, unit or job definitions |
 
 Rule 1 closes most of the option routes in the table by itself; the
@@ -182,8 +223,8 @@ Streaming is not needed (above). What lockssh still needs is lox support
 | Issue | State after v0.1.0 | Left |
 |---|---|---|
 | #3 Console | Shipped (`internal/config`, `internal/sshconsole`, hub mode, audit; `hub_test.go`, `integration_test.go`) | nothing beyond #4's changes |
-| #4 Agent surface | Shipped but for the items marked change | `lockssh_pii_list` / `lockssh_pii_add` and `.lockssh/pii.toml` through the reviewed policy; production `auto.exec` refusal; globs that match no option and no `.`/`..` segment; the policy-review warning on code-running programs and option globs; leak, injection and equivalence suites named as locklog#63 |
-| #5 Launcher verbs | Shipped | `lockssh version --json` with the protocol number lea's `locks.lock` and lockhub's contract tests read |
+| #4 Agent surface | Shipped but for the items marked change | `lockssh_pii_list` / `lockssh_pii_add` and `.lockssh/pii.toml` through the reviewed policy; production `auto.exec` refusal; `exec` before the remote line, an argv[0] starting with `-`/`+` refused, builtin-only rule programs refused at load; globs that match no `-`/`+` option and no `.`/`..` segment; the policy-review warning on code-running programs (version suffixes stripped) and option globs; leak, injection and equivalence suites named as locklog#63 |
+| #5 Launcher verbs | Shipped | `lockssh version --json` with the protocol number lea's `locks.lock` and lockhub's contract tests read; none of the injection or glob rules |
 | #6 Release | v0.1.0 tagged and published, image signed, tap dispatched | the next pre-release with #4 and #5 |
 | #7 Docs and site | README, security model, usage, Docker, demo, banners | `site/`, `pages.yml`, `scripts/check-site.py`, domain |
 | #11 lox | Docs say what is true | the quick start once lockhub#133 ships |
