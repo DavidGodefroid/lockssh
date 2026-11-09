@@ -227,7 +227,7 @@ Streaming is not needed (above). What lockssh still needs is lox support
 | #5 Launcher verbs | Shipped, with `version --json` and golden tests of each verb's output (`cmd/lockssh/testdata/`) | nothing; none of the injection or glob rules |
 | #6 Release | v0.1.0 tagged and published, image signed, tap dispatched | the next pre-release with #4 and #5 |
 | #7 Docs and site | README, security model, usage, Docker, demo, banners | `site/`, `pages.yml`, `scripts/check-site.py`, domain |
-| #11 lox | Docs say what is true | the quick start once lockhub#133 ships |
+| #11 lox | Docs say what is true; the quick start is `lox add lockssh` + `lox run` (lockhub#133, merged, in lockhub's release after v0.10.1) | its end-to-end test with that release |
 
 Recommended order: #4 (the production refusal first), #5, a pre-release
 (#6, #11), then lockhub#133, then #7's site and the `lox add lockssh` quick

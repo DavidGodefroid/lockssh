@@ -32,6 +32,10 @@ All notable changes to lockssh. The format follows
 
 ### Changed
 
+- The README quick start is `lox init`, `lox add lockssh`, then `lox run`
+  (#11): the lockssh lock type is on lockhub's main branch (lockhub#133), in
+  its release after v0.10.1. The docs, `profile add` and the launcher name
+  that release instead of "not released yet".
 - **Security (#4).** Globs and `**` in allow rules never match an argument
   starting with `-` or `+` (unless the glob starts with the same character,
   or follows a literal `--`) nor a `.`/`..` path segment they cover:

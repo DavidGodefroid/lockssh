@@ -263,15 +263,15 @@ warning while `lox run` starts none.
 
 The console runs hub-attached only: lockhub's `lox run` starts it, with its
 hub flags (`lockssh console` on its own refuses to start: "launched by `lox
-run` only"). That takes the lockhub release that adds the lockssh lock type ([lockhub#133](https://github.com/DavidGodefroid/lockhub/issues/133)): no lockhub release knows lockssh yet,
-so until it ships these commands do not start a lockssh console. With it,
-from the workspace:
+run` only"). That takes lockhub's release after v0.10.1, the first with the
+lockssh lock type ([lockhub#133](https://github.com/DavidGodefroid/lockhub/issues/133));
+an older `lox` starts no lockssh console. From the workspace:
 
 ```sh
-lox add lockssh events
-lox run
-lox attach events   # the console's own questions: policy review, host key, passphrase (detach: Ctrl-P Ctrl-Q)
-lox approve         # the agent's commands outside the allow list
+lox add lockssh events   # its questions: host, port, login, key file, allow rules
+lox run                  # keep it open: it starts the console and serves the decisions
+lox attach events        # the console's own questions: policy review, host key, passphrase (detach: Ctrl-P Ctrl-Q)
+lox approve              # the agent's commands outside the allow list
 ```
 
 The rest of this page describes the launcher's own console container
