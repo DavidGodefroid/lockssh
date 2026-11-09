@@ -367,7 +367,7 @@ lockup_volume() {
 		lu_d=$(dirname "$lu_d")
 	done
 	if [ -z "$lu_ws" ]; then
-		lockup_why="no .lockfamily/up.json in $here or above it: start the workspace's locks with \`lox run\` (lockhub; its lockssh type comes with lockhub#133, not released yet), then run lockssh from the workspace"
+		lockup_why="no .lockfamily/up.json in $here or above it: start the workspace's locks with \`lox run\` (lockhub after v0.10.1, the first with the lockssh type: lockhub#133), then run lockssh from the workspace"
 		return 1
 	fi
 	lu_lf=$lu_ws/.lockfamily

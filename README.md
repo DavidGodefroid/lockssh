@@ -38,8 +38,11 @@ It works with any MCP client (Claude Code, Codex, Cursor, Gemini CLI, …) or
 through the `lockssh` CLI.
 
 > [!NOTE]
-> **Pre-release.** v0.1.0 is the first release. lockssh is not yet a `lox add`
-> type nor in lea, the Homebrew tap or the Lock Family installer: those land next.
+> **Pre-release.** v0.1.0 is the first release. `lox add lockssh` and `lox run`
+> serving it are on lockhub's main branch
+> ([lockhub#133](https://github.com/DavidGodefroid/lockhub/issues/133)), in its
+> next release: lockhub v0.10.1 does not know lockssh yet. lea, the Homebrew
+> tap and the Lock Family installer follow.
 
 ## Why lockssh
 
@@ -83,26 +86,35 @@ launcher, which runs every command in the signed image
 
 ## Quick start
 
-1. Add an SSH host profile (host, login, key file, allow rules; never a secret):
+It takes lockhub's `lox` from its release after v0.10.1, the first that knows
+the lockssh lock type
+([lockhub#133](https://github.com/DavidGodefroid/lockhub/issues/133)): the
+console runs hub-attached only, and an older `lox` cannot start it.
+
+1. In your project, write a `lockfamily.yaml` with the hub alone (once):
 
    ```sh
-   lockssh profile add
+   lox init
    ```
 
-2. Wire your agent in the project: `lockssh init claude`, `lockssh init codex`,
-   `lockssh init cursor` or `lockssh init gemini`.
-
-3. Check the setup:
+2. Add an SSH host, guided and applied at once (host, port, login, key file
+   in the lock's home, allow rules; never a secret):
 
    ```sh
-   lockssh doctor
+   lox add lockssh
    ```
 
-   The console is started by `lox run`, with its hub (Lock Family), from the
-   lockhub release that adds the lockssh lock type
-   ([lockhub#133](https://github.com/DavidGodefroid/lockhub/issues/133)). No
-   lockhub release knows lockssh yet, and the console does not start without
-   its hub: until that release, lockssh cannot run a console.
+   It runs `lockssh profile add`, `lockssh init claude` and `lockssh doctor`
+   for you, declares the lock in `lockfamily.yaml`, offers to copy your key
+   into the console's home, and shows the lock's review as it starts. Another
+   agent: `lockssh init codex`, `lockssh init cursor` or `lockssh init gemini`.
+
+3. Keep `lox run` open in a terminal of its own: it starts the console with
+   its hub and serves the decisions.
+
+   ```sh
+   lox run
+   ```
 
 4. Ask your agent: *"Is nginx running on web1? Show the last errors."* It calls
    `lockssh_status`, then `lockssh_run` with `["systemctl", "status", "nginx"]`
@@ -162,9 +174,8 @@ public IPs, cards, IBANs, phones, secrets.
 ## How it works
 
 1. `lox run` starts the console in its own container, as the `lockssh`
-   account (from the lockhub release that adds the lockssh type,
-   [lockhub#133](https://github.com/DavidGodefroid/lockhub/issues/133); not
-   released yet). It shows the profile's policy for approval, logs in over SSH
+   account, with an egress to the profile's host only (lockhub after v0.10.1,
+   [lockhub#133](https://github.com/DavidGodefroid/lockhub/issues/133)). It shows the profile's policy for approval, logs in over SSH
    (trusting the host key only on your answer), and checks the account.
 2. The agent's `lockssh mcp` (or CLI) runs as another account and reaches
    the console only through its socket.

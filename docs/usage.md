@@ -217,8 +217,10 @@ the ticket `never_auto`. `lockssh profile rules --json` prints the rules
 
 ## The console
 
-`lox run` starts the console, from the lockhub release that adds the lockssh lock type ([lockhub#133](https://github.com/DavidGodefroid/lockhub/issues/133)), not
-released yet: until then no console runs. `lox run` launches `lockssh console --hub URL --hub-key-file FILE
+`lox run` starts the console (`lox add lockssh` declares it), from lockhub's
+release after v0.10.1, the first with the lockssh lock type
+([lockhub#133](https://github.com/DavidGodefroid/lockhub/issues/133)); an older
+`lox` starts none. `lox run` launches `lockssh console --hub URL --hub-key-file FILE
 --instance NAME [--profile P] [--project DIR] [--allow-unmask]
 [--show-results] [--allowed-uids UID,...]`. It refuses to start without its
 hub. At its start it shows the policy for approval, asks the secret, logs
