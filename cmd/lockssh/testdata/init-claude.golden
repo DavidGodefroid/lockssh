@@ -2,9 +2,10 @@ claude: created .mcp.json
 claude: created .claude/skills/lockssh/SKILL.md
 claude: unchanged .lockssh/config.toml
 Claude Code asks once whether to use the project MCP server "lockssh"; approve it.
-Optional: the calls below never touch data without the console's approval. To stop
-Claude Code prompting for them, add them to "permissions.allow" in
-.claude/settings.local.json (personal) or .claude/settings.json (shared):
+The calls below answer within the console's policy and budgets, without a prompt.
+Optional: to stop Claude Code prompting for them, add them to
+"permissions.allow" in .claude/settings.local.json (personal) or
+.claude/settings.json (shared):
 
   "mcp__lockssh__lockssh_status",
   "Bash(lockssh status:*)",

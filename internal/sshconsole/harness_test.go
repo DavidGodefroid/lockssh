@@ -26,6 +26,7 @@ import (
 	"github.com/DavidGodefroid/lockkit/audit"
 	"github.com/DavidGodefroid/lockkit/console"
 	"github.com/DavidGodefroid/lockkit/ipc"
+	"github.com/DavidGodefroid/lockkit/managed"
 
 	"github.com/DavidGodefroid/lockssh/internal/product"
 )
@@ -309,6 +310,9 @@ type rigOpts struct {
 	// tofu leaves known_hosts unset (the console account's file, empty):
 	// the console asks to trust the key.
 	tofu bool
+	// managed serves the machine's managed file (managed.Load) and re-reads
+	// it at every policy poll, as console.Run does.
+	managed bool
 }
 
 func profileName(o rigOpts) string {
@@ -410,6 +414,12 @@ func newRig(t *testing.T, o rigOpts) *rig {
 		}
 		t.Cleanup(r.closeHub)
 		go func() { defer close(done); h.Watch(ctx, r.io) }()
+	}
+	if o.managed {
+		if cfg.Managed, err = managed.Load(context.Background()); err != nil {
+			t.Fatal(err)
+		}
+		cfg.LoadManaged = managed.Load
 	}
 	r.srv, err = console.NewServer(cfg)
 	if err != nil {

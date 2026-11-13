@@ -140,6 +140,7 @@ func (b *Backend) askConnect(ctx context.Context, env console.Env, h *console.Hu
 	rule := pr.Auto.RuleID(config.ActConnect)
 	base := audit.Base{Event: audit.EventPending, Decision: "pending", Approval: "hub", Profile: pr.Name}
 	console.StampPeer(ctx, &base)
+	stampManaged(env, &base)
 	rec := func(b audit.Base, d *ticket.Decision) Record {
 		return Record{Base: b, Action: config.ActConnect, AutoRule: rule, DecidedBy: decidedBy(d)}
 	}

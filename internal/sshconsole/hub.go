@@ -240,6 +240,7 @@ func (b *Backend) renew(ctx context.Context, env console.Env, h *console.Hub, id
 		base.Reason = "renewed by ticket " + pd.Ticket
 	}
 	console.StampPeer(ctx, &base)
+	stampManaged(env, &base)
 	rec := Record{Base: base, Unmasked: false}
 	if command := stored.Argv; len(command) > 0 {
 		rec.Command = maskedCommand(command)
@@ -288,6 +289,7 @@ func (b *Backend) auditDecision(ctx context.Context, env console.Env, id string,
 		base.Decision, base.Error = "failed", env.Sanitizer().Error(cause)
 	}
 	console.StampPeer(ctx, &base)
+	stampManaged(env, &base)
 	rec := Record{Base: base, DecidedBy: decidedBy(d)}
 	if pol, ok := env.Policy().(Policy); ok && len(p.Argv) > 0 {
 		pp := classify(pol, p)

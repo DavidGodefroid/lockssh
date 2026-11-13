@@ -382,6 +382,7 @@ func (b *Backend) recordOf(env console.Env, base audit.Base, pp *prep) Record {
 	if base.Profile == "" {
 		base.Profile = env.Policy().Profile().Name
 	}
+	stampManaged(env, &base)
 	rec := Record{Base: base}
 	if pp != nil {
 		rec.Command, rec.Action, rec.Rule = maskedCommand(pp.argv), pp.action, pp.rule

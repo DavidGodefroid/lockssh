@@ -11,6 +11,7 @@ import (
 
 	kconfig "github.com/DavidGodefroid/lockkit/config"
 	"github.com/DavidGodefroid/lockkit/console"
+	"github.com/DavidGodefroid/lockkit/sanitize"
 
 	"github.com/DavidGodefroid/lockssh/internal/product"
 	"github.com/DavidGodefroid/lockssh/internal/sshconsole"
@@ -94,6 +95,17 @@ func runConsole(e env, args []string) int {
 		Sanitizer: sshconsole.Sanitizer(), Hub: hub, OnHub: be.OnHub,
 	})
 	if err != nil {
+		if errors.Is(err, console.ErrManaged) {
+			// Refused by the company: no human can approve past it.
+			lines := console.ManagedLines(err)
+			if len(lines) == 0 {
+				lines = []string{err.Error()}
+			}
+			for _, l := range lines {
+				fmt.Fprintln(e.stderr, "lockssh console:", sanitize.Terminal(l, false))
+			}
+			return exitUsage
+		}
 		fmt.Fprintln(e.stderr, "lockssh console:", err)
 		if errors.Is(err, console.ErrConfig) {
 			return exitUsage
