@@ -40,10 +40,9 @@ through the `lockssh` CLI.
 
 > [!NOTE]
 > **0.x**: flags and the policy format may still change between minor versions. v0.2.0 is the latest release. `lox add lockssh` and `lox run`
-> serving it are on lockhub's main branch
-> ([lockhub#133](https://github.com/DavidGodefroid/lockhub/issues/133)), in its
-> next release: lockhub v0.10.1 does not know lockssh yet. lea and the Lock
-> Family installer follow.
+> serving it ship in lockhub v0.11.0
+> ([lockhub#133](https://github.com/DavidGodefroid/lockhub/issues/133)); an
+> older `lox` does not know lockssh.
 
 ## Why lockssh
 
@@ -67,8 +66,11 @@ brew install davidgodefroid/tap/lockssh
 The formula installs the `lockssh` launcher and pins the release images by
 digest, checked with cosign when the formula was bumped. Upgrade with
 `brew upgrade lockssh`, not `lockssh update`. The `lockfamily` meta formula
-installs the rest of the family; it pulls lockssh in with lockhub's next
-release.
+installs the whole family, lockssh included, with lockhub's `lox` v0.11.0:
+
+```sh
+brew install davidgodefroid/tap/lockfamily
+```
 
 Without Homebrew, download the install script from the release you install,
 read it, then run it with that release:
@@ -92,7 +94,7 @@ launcher, which runs every command in the signed image
 
 ## Quick start
 
-It takes lockhub's `lox` from its release after v0.10.1, the first that knows
+It takes lockhub's `lox` v0.11.0 or later, the first that knows
 the lockssh lock type
 ([lockhub#133](https://github.com/DavidGodefroid/lockhub/issues/133)): the
 console runs hub-attached only, and an older `lox` cannot start it.
@@ -110,7 +112,7 @@ console runs hub-attached only, and an older `lox` cannot start it.
    lox add lockssh
    ```
 
-   It runs `lockssh profile add`, `lockssh init claude` and `lockssh doctor`
+   It pins lockssh v0.2.0, runs `lockssh profile add`, `lockssh init claude` and `lockssh doctor`
    for you, declares the lock in `lockfamily.yaml`, offers to copy your key
    into the console's home, and shows the lock's review as it starts. Another
    agent: `lockssh init codex`, `lockssh init cursor` or `lockssh init gemini`.
@@ -180,7 +182,7 @@ public IPs, cards, IBANs, phones, secrets.
 ## How it works
 
 1. `lox run` starts the console in its own container, as the `lockssh`
-   account, with an egress to the profile's host only (lockhub after v0.10.1,
+   account, with an egress to the profile's host only (lockhub v0.11.0 or later,
    [lockhub#133](https://github.com/DavidGodefroid/lockhub/issues/133)). It shows the profile's policy for approval, logs in over SSH
    (trusting the host key only on your answer), and checks the account.
 2. The agent's `lockssh mcp` (or CLI) runs as another account and reaches

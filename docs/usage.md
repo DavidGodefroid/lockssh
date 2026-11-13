@@ -217,8 +217,8 @@ the ticket `never_auto`. `lockssh profile rules --json` prints the rules
 
 ## The console
 
-`lox run` starts the console (`lox add lockssh` declares it), from lockhub's
-release after v0.10.1, the first with the lockssh lock type
+`lox run` starts the console (`lox add lockssh` declares it), from lockhub
+v0.11.0 or later, the first with the lockssh lock type
 ([lockhub#133](https://github.com/DavidGodefroid/lockhub/issues/133)); an older
 `lox` starts none. `lox run` launches `lockssh console --hub URL --hub-key-file FILE
 --instance NAME [--profile P] [--project DIR] [--allow-unmask]
