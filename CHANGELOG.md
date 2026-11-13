@@ -6,6 +6,8 @@ All notable changes to lockssh. The format follows
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-13
+
 ### Fixed
 
 - The launcher mounts the machine's managed directory (`/etc/lockfamily`,
@@ -16,9 +18,14 @@ All notable changes to lockssh. The format follows
 
 ### Changed
 
-- lockkit v0.18.0 (from v0.14.1): package `managed` and its console
+- lockkit v0.19.0 (from v0.14.1): package `managed` and its console
   integration; `lockssh init`'s allow note is lockkit's new default text
-  (#17).
+  (#17). From v0.19.0, lockkit's default PII detectors can mask more, or
+  under another kind: a French NIR whose digits pass Luhn is masked as a
+  NIR, no longer as a card number; `phone` also finds a national number
+  after a phone word and 12-digit German mobiles; `be_niss` takes other
+  separators after `NISS`/`rijksregister`; an e-mail local part may hold
+  an apostrophe.
 
 ### Added
 
