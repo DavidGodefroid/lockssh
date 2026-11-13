@@ -63,13 +63,13 @@
 <section aria-labelledby="status">
   <h2 id="status">Where things stand</h2>
   <div class="prose">
-    <p>lockssh v0.2.0 is the latest release. <code>lox add lockssh</code> and <code>lox run</code> serving it are on lockhub’s main branch (<a href="https://github.com/DavidGodefroid/lockhub/issues/133">lockhub#133</a>), in its next release: lockhub v0.10.1 does not know lockssh yet, and an older <code>lox</code> cannot start its console.</p>
-    <p>lockssh has a Homebrew formula, on Linux and macOS. The <code>lockfamily</code> meta formula pulls it in with lockhub’s next release; until then, install it by name.</p>
+    <p>lockssh v0.2.0 is the latest release. <code>lox add lockssh</code> and <code>lox run</code> serving it ship in lockhub v0.11.0 (<a href="https://github.com/DavidGodefroid/lockhub/issues/133">lockhub#133</a>); an older <code>lox</code> does not know lockssh and cannot start its console. <code>lox add lockssh</code> pins lockssh v0.2.0.</p>
+    <p>lockssh has a Homebrew formula, on Linux and macOS. The <code>lockfamily</code> meta formula installs the whole family, lockssh and lockhub’s <code>lox</code> v0.11.0 included; or install lockssh by name.</p>
   </div>
   <div class="install">
     <div class="install-head"><span>lockssh, with Homebrew</span></div>
     <pre tabindex="0" aria-label="Install commands"><code><span class="cmd">brew trust davidgodefroid/tap</span>
-<span class="cmd">brew install davidgodefroid/tap/lockssh</span></code></pre>
+<span class="cmd">brew install davidgodefroid/tap/lockfamily</span>   <span class="cmt"># or davidgodefroid/tap/lockssh alone</span></code></pre>
     <p class="install-note">Homebrew asks you to trust a third-party tap once. Upgrade with <code>brew upgrade lockssh</code>. Without Homebrew, install the launcher, below.</p>
   </div>
 </section>
@@ -101,7 +101,7 @@ lockssh update [vX.Y.Z]     <span class="cmt"># a new launcher, then docker pull
 
 <section aria-labelledby="quick-start">
   <h2 id="quick-start">Set up a project</h2>
-  <p class="prose">In your project, with lockhub’s <code>lox</code> from its release after v0.10.1:</p>
+  <p class="prose">In your project, with lockhub’s <code>lox</code> v0.11.0 or later:</p>
   <pre tabindex="0" class="term"><code>lox init           <span class="cmt"># a lockfamily.yaml with the hub alone (once)</span>
 lox add lockssh    <span class="cmt"># host, port, login, key file, allow rules; never a secret</span>
 lox run            <span class="cmt"># in a terminal of its own: starts the console, serves the decisions</span></code></pre>

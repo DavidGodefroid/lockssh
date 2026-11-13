@@ -64,7 +64,7 @@
       <pre tabindex="0" aria-label="Set-up commands"><code><span class="cmd">lox init</span>
 <span class="cmd">lox add lockssh</span>
 <span class="cmd">lox run</span></code></pre>
-      <p class="install-note">lockssh comes with lockhub’s next release, after v0.10.1: an older <code>lox</code> does not know it. Docker on Linux or macOS; <code>brew install davidgodefroid/tap/lockssh</code>, or the launcher of the <a href="install/">install guide</a>.</p>
+      <p class="install-note">lockssh takes lockhub’s <code>lox</code> v0.11.0 or later: an older one does not know it. Docker on Linux or macOS; <code>brew install davidgodefroid/tap/lockfamily</code> installs both, or the launcher of the <a href="install/">install guide</a>.</p>
     </div>
     <div class="actions">
       <a class="button primary" href="install/">Install guide</a>
@@ -161,7 +161,7 @@
 <section aria-labelledby="quick-start">
   <h2 id="quick-start">Quick start</h2>
   <ol class="steps prose">
-    <li><p>Install the <code>lockssh</code> launcher and lockhub’s <code>lox</code> from its release after v0.10.1 (<a href="install/">install guide</a>). Docker must be running.</p></li>
+    <li><p>Install the <code>lockssh</code> launcher and lockhub’s <code>lox</code> v0.11.0 or later, or both with <code>brew install davidgodefroid/tap/lockfamily</code> (<a href="install/">install guide</a>). Docker must be running.</p></li>
     <li><p>In your project, write a <code>lockfamily.yaml</code> with the hub alone (once):</p>
       <pre tabindex="0"><code>lox init</code></pre></li>
     <li><p>Add an SSH host: host, port, login, key file in the lock’s home, allow rules. Never a secret.</p>

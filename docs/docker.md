@@ -284,7 +284,7 @@ warning while `lox run` starts none.
 
 The console runs hub-attached only: lockhub's `lox run` starts it, with its
 hub flags (`lockssh console` on its own refuses to start: "launched by `lox
-run` only"). That takes lockhub's release after v0.10.1, the first with the
+run` only"). That takes lockhub v0.11.0 or later, the first with the
 lockssh lock type ([lockhub#133](https://github.com/DavidGodefroid/lockhub/issues/133));
 an older `lox` starts no lockssh console. From the workspace:
 
