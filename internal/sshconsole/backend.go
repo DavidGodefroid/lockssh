@@ -10,12 +10,14 @@ import (
 	"fmt"
 	"regexp"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 
 	kconfig "github.com/DavidGodefroid/lockkit/config"
 	"github.com/DavidGodefroid/lockkit/console"
 	"github.com/DavidGodefroid/lockkit/kit"
+	"github.com/DavidGodefroid/lockkit/managed"
 	"github.com/DavidGodefroid/lockkit/pii"
 	"github.com/DavidGodefroid/lockkit/sanitize"
 
@@ -95,18 +97,19 @@ func (b *Backend) Methods() map[string]console.Handler {
 	return map[string]console.Handler{MethodRun: b.run, MethodPlan: b.plan}
 }
 
-// LoadPolicy implements console.Backend: the profile from the config files,
-// in canonical form.
+// LoadPolicy implements console.Backend: the profile from the config files
+// under the company's managed configuration (its defaults, its profiles,
+// its required detectors and mask rules), in canonical form. The console
+// checks it against the managed bounds (ManagedBounds).
 func (b *Backend) LoadPolicy() (console.Policy, error) {
-	var profiles map[string]config.Profile
-	var err error
-	if b.o.Root != "" {
-		profiles, _, err = config.LoadFrom(b.o.Root, b.o.UserConfig)
-	} else if b.o.UserConfig != "" {
-		profiles, err = config.LoadFile(b.o.UserConfig)
-	} else {
-		err = errors.New("no config file")
+	if b.o.Root == "" && b.o.UserConfig == "" {
+		return nil, errors.New("no config file")
 	}
+	m, err := config.LoadManaged(context.Background())
+	if err != nil {
+		return nil, err
+	}
+	profiles, _, err := config.LoadWith(b.o.Root, b.o.UserConfig, m)
 	if err != nil {
 		return nil, err
 	}
@@ -115,14 +118,48 @@ func (b *Backend) LoadPolicy() (console.Policy, error) {
 		return nil, fmt.Errorf("no profile %q in the config files", b.o.Profile)
 	}
 	pol := config.NewPolicy(pr)
+	var r config.PIIRules
 	if path := b.piiPath(); path != "" {
-		r, err := config.LoadPII(path)
-		if err != nil {
+		if r, err = config.LoadPII(path); err != nil {
 			return nil, err
 		}
+	}
+	if r, err = m.WithPII(r); err != nil {
+		return nil, err
+	}
+	if len(r.Mask)+len(r.Allow) > 0 {
 		pol = pol.WithPII(r)
 	}
 	return Policy{pol}, nil
+}
+
+var _ console.ManagedBackend = (*Backend)(nil)
+
+// ManagedBounds implements console.ManagedBackend: p at the ceiling of
+// [lockssh.bounds]. A host, an auth method or a credentials mode outside
+// its allowed list (or not vault under [family] vault.required) is an
+// error citing the managed key, one line each.
+func (b *Backend) ManagedBounds(p console.Policy, f *managed.File) (managed.Bounds, error) {
+	pol, ok := p.(Policy)
+	if !ok {
+		return managed.Bounds{}, fmt.Errorf("lockssh: unexpected policy type %T", p)
+	}
+	m, err := config.NewManaged(f)
+	if err != nil {
+		return managed.Bounds{}, err
+	}
+	bounds, vs := m.Bounds(pol.Policy)
+	if len(vs) > 0 {
+		lines := make([]string, len(vs))
+		for i, v := range vs {
+			lines[i] = v.String()
+		}
+		return managed.Bounds{}, errors.New(strings.Join(lines, "\n"))
+	}
+	if bounds.Ceiling != nil {
+		bounds.Ceiling = Policy{bounds.Ceiling.(config.Policy)}
+	}
+	return bounds, nil
 }
 
 // piiPath is the PII rules file of the console's profile ("" for none).

@@ -6,6 +6,7 @@
 package config
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -18,6 +19,7 @@ import (
 
 	kconfig "github.com/DavidGodefroid/lockkit/config"
 	"github.com/DavidGodefroid/lockkit/console"
+	"github.com/DavidGodefroid/lockkit/managed"
 	"github.com/DavidGodefroid/lockkit/pii"
 
 	"github.com/DavidGodefroid/lockssh/internal/command"
@@ -104,46 +106,62 @@ func Load(cwd string) (map[string]Profile, string, error) {
 }
 
 // LoadFrom is Load with an explicit user config path ("" for none). A
-// missing user config file is not an error.
+// missing user config file is not an error. It reads the machine's managed
+// file (LoadManaged): a refused one is an error.
 func LoadFrom(cwd, userConfigPath string) (map[string]Profile, string, error) {
-	out := map[string]Profile{}
-	if userConfigPath != "" {
-		ps, err := loadFile(userConfigPath)
-		if err != nil && !errors.Is(err, fs.ErrNotExist) {
-			return nil, "", err
-		}
-		for n, p := range ps {
-			out[n] = p
-		}
-	}
-	root, ok := kconfig.FindProjectRoot(product.P, cwd)
-	if !ok {
-		return out, "", nil
-	}
-	ps, err := loadFile(kconfig.ProjectConfigPath(product.P, root))
+	m, err := LoadManaged(context.Background())
 	if err != nil {
 		return nil, "", err
 	}
-	for n, p := range ps {
-		out[n] = p
+	return LoadWith(cwd, userConfigPath, m)
+}
+
+// LoadWith is LoadFrom under the managed configuration m (nil: none): the
+// managed defaults fill what the files leave unset, and the managed
+// profiles are merged with the files' (managed.MergeProfiles: a file
+// profile of a managed name is refused). cwd "" reads no project config.
+func LoadWith(cwd, userConfigPath string, m *Managed) (map[string]Profile, string, error) {
+	var user, project map[string]Profile
+	if userConfigPath != "" {
+		ps, err := loadFile(userConfigPath, m)
+		if err != nil && !errors.Is(err, fs.ErrNotExist) {
+			return nil, "", err
+		}
+		user = ps
+	}
+	var root string
+	if cwd != "" {
+		if r, ok := kconfig.FindProjectRoot(product.P, cwd); ok {
+			ps, err := loadFile(kconfig.ProjectConfigPath(product.P, r), m)
+			if err != nil {
+				return nil, "", err
+			}
+			project, root = ps, r
+		}
+	}
+	out, err := managed.MergeProfiles(m.Profiles(), project, user)
+	if err != nil {
+		return nil, "", err
 	}
 	return out, root, nil
 }
 
-// LoadFile reads the profiles of one config file.
-func LoadFile(path string) (map[string]Profile, error) { return loadFile(path) }
-
-func loadFile(path string) (map[string]Profile, error) {
+func loadFile(path string, m *Managed) (map[string]Profile, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("config: %w", err)
 	}
-	return ParseProfiles(data, filepath.Clean(path))
+	return parseProfiles(data, filepath.Clean(path), m)
 }
 
-// ParseProfiles decodes and validates config data; name labels errors.
-// Errors never quote a value that could hold a secret.
+// ParseProfiles decodes and validates config data, without the managed
+// configuration; name labels errors. Errors never quote a value that could
+// hold a secret.
 func ParseProfiles(data []byte, name string) (map[string]Profile, error) {
+	return parseProfiles(data, name, nil)
+}
+
+func parseProfiles(data []byte, name string, m *Managed) (map[string]Profile, error) {
 	var raw rawFile
 	md, err := kconfig.Decode(product.P, data, name, &raw)
 	if err != nil {
@@ -156,7 +174,8 @@ func ParseProfiles(data []byte, name string) (map[string]Profile, error) {
 	sort.Strings(names)
 	out := make(map[string]Profile, len(names))
 	for _, pn := range names {
-		p, err := buildProfile(pn, raw.Profiles[pn], md.IsDefined("profiles", pn, "detectors"))
+		set := func(key ...string) bool { return md.IsDefined(append([]string{"profiles", pn}, key...)...) }
+		p, err := m.build(pn, raw.Profiles[pn], set)
 		if err != nil {
 			return nil, fmt.Errorf("config: %s: %w", name, err)
 		}
