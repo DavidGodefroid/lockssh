@@ -7,7 +7,7 @@
 
 <p align="center">
   <a href="https://github.com/DavidGodefroid/lockssh/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/DavidGodefroid/lockssh/actions/workflows/ci.yml/badge.svg"></a>
-  <a href="https://github.com/DavidGodefroid/lockssh/releases"><img alt="Latest release" src="https://img.shields.io/github/v/release/DavidGodefroid/lockssh?include_prereleases&sort=semver&label=release&color=1f4a9c"></a>
+  <a href="https://github.com/DavidGodefroid/lockssh/releases"><img alt="Latest release" src="https://img.shields.io/github/v/release/DavidGodefroid/lockssh?sort=semver&label=release&color=1f4a9c"></a>
   <a href="LICENSE"><img alt="License: Apache 2.0" src="https://img.shields.io/badge/license-Apache%202.0-575146"></a>
   <a href="go.mod"><img alt="Go version" src="https://img.shields.io/github/go-mod/go-version/DavidGodefroid/lockssh?color=575146&logo=go&logoColor=white"></a>
 </p>
@@ -39,7 +39,7 @@ It works with any MCP client (Claude Code, Codex, Cursor, Gemini CLI, …) or
 through the `lockssh` CLI.
 
 > [!NOTE]
-> **Pre-release.** v0.2.0 is the latest release. `lox add lockssh` and `lox run`
+> **0.x**: flags and the policy format may still change between minor versions. v0.2.0 is the latest release. `lox add lockssh` and `lox run`
 > serving it are on lockhub's main branch
 > ([lockhub#133](https://github.com/DavidGodefroid/lockhub/issues/133)), in its
 > next release: lockhub v0.10.1 does not know lockssh yet. lea and the Lock
