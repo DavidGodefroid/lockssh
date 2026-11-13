@@ -22,6 +22,9 @@ All notable changes to lockssh. The format follows
 
 ### Added
 
+- Homebrew: `brew install davidgodefroid/tap/lockssh` (homebrew-tap#6), at
+  v0.1.0. The release workflow's `tap` job warns on the run when
+  `TAP_DISPATCH_TOKEN` is not set, instead of skipping the bump silently (#6).
 - The company's managed configuration: lockssh enforces the `[lockssh]`
   section of the Lock Family's `managed.toml` (bounds the user may tighten
   but never loosen, managed defaults, managed profiles, always-on detectors

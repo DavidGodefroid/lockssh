@@ -64,13 +64,13 @@
   <h2 id="status">Where things stand</h2>
   <div class="prose">
     <p>lockssh v0.1.0 is the first release. <code>lox add lockssh</code> and <code>lox run</code> serving it are on lockhub’s main branch (<a href="https://github.com/DavidGodefroid/lockhub/issues/133">lockhub#133</a>), in its next release: lockhub v0.10.1 does not know lockssh yet, and an older <code>lox</code> cannot start its console.</p>
-    <p>There is no Homebrew formula for lockssh yet: it comes with the Homebrew tap and the Lock Family installer, next. For the rest of the family:</p>
+    <p>lockssh has a Homebrew formula, on Linux and macOS. The <code>lockfamily</code> meta formula pulls it in with lockhub’s next release; until then, install it by name.</p>
   </div>
   <div class="install">
-    <div class="install-head"><span>The rest of the family, with Homebrew</span></div>
+    <div class="install-head"><span>lockssh, with Homebrew</span></div>
     <pre tabindex="0" aria-label="Install commands"><code><span class="cmd">brew trust davidgodefroid/tap</span>
-<span class="cmd">brew install davidgodefroid/tap/lockfamily</span></code></pre>
-    <p class="install-note">Homebrew asks you to trust a third-party tap once. Install lockssh itself with its launcher, below.</p>
+<span class="cmd">brew install davidgodefroid/tap/lockssh</span></code></pre>
+    <p class="install-note">Homebrew asks you to trust a third-party tap once. Upgrade with <code>brew upgrade lockssh</code>. Without Homebrew, install the launcher, below.</p>
   </div>
 </section>
 

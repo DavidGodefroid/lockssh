@@ -117,8 +117,9 @@ jobs:
   # formula to this release, once the archives and the images are published
   # and signed: the tap's bump workflow verifies them with cosign before
   # rewriting the formula. Needs the secret TAP_DISPATCH_TOKEN, a fine-grained
-  # token limited to the tap (Contents: read and write); without it the step
-  # is skipped. The token is in this job only, which runs no action.
+  # token limited to the tap (Contents: read and write); without it the bump
+  # is skipped and a warning on the run says so. The token is in this job
+  # only, which runs no action.
   tap:
     name: homebrew tap
     needs: [goreleaser, image-manifest]
@@ -136,3 +137,7 @@ jobs:
             -f event_type=bump \
             -f "client_payload[formula]=lockssh" \
             -f "client_payload[version]=${GITHUB_REF_NAME}"
+      - name: Warn that the formula was not bumped
+        if: ${{ env.TAP_DISPATCH_TOKEN == '' }}
+        run: |
+          echo "::warning::TAP_DISPATCH_TOKEN is not set: the Homebrew formula was not bumped; run the tap's bump workflow by hand (formula lockssh, version ${GITHUB_REF_NAME})"

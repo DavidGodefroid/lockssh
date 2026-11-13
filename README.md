@@ -42,8 +42,8 @@ through the `lockssh` CLI.
 > **Pre-release.** v0.1.0 is the first release. `lox add lockssh` and `lox run`
 > serving it are on lockhub's main branch
 > ([lockhub#133](https://github.com/DavidGodefroid/lockhub/issues/133)), in its
-> next release: lockhub v0.10.1 does not know lockssh yet. lea, the Homebrew
-> tap and the Lock Family installer follow.
+> next release: lockhub v0.10.1 does not know lockssh yet. lea and the Lock
+> Family installer follow.
 
 ## Why lockssh
 
@@ -57,16 +57,21 @@ through the `lockssh` CLI.
 
 ## Install
 
-There is no Homebrew formula for lockssh yet: it comes with the Homebrew tap
-and the Lock Family installer, next. For the rest of the family:
+lockssh runs in Docker. With Homebrew (Linux or macOS):
 
 ```sh
 brew trust davidgodefroid/tap
-brew install davidgodefroid/tap/lockfamily
+brew install davidgodefroid/tap/lockssh
 ```
 
-lockssh runs in Docker. Download the install script from the release you
-install, read it, then run it with that release:
+The formula installs the `lockssh` launcher and pins the release images by
+digest, checked with cosign when the formula was bumped. Upgrade with
+`brew upgrade lockssh`, not `lockssh update`. The `lockfamily` meta formula
+installs the rest of the family; it pulls lockssh in with lockhub's next
+release.
+
+Without Homebrew, download the install script from the release you install,
+read it, then run it with that release:
 
 ```sh
 V=vX.Y.Z
