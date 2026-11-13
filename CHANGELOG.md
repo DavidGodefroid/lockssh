@@ -6,6 +6,14 @@ All notable changes to lockssh. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- The launcher mounts the machine's managed directory (`/etc/lockfamily`,
+  `/Library/Application Support/lockfamily` on macOS) read-only on
+  `/etc/lockfamily` in its containers, as `lox run` does in its locks:
+  `lockssh managed show`, `managed check`, `doctor` and the other commands
+  run from the host see the company's managed configuration (#25).
+
 ### Changed
 
 - lockkit v0.18.0 (from v0.14.1): package `managed` and its console
