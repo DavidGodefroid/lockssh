@@ -227,6 +227,7 @@ What lockssh enforces and what it does not:
 | Doc | What it covers |
 |---|---|
 | [docs/usage.md](docs/usage.md) | Profiles, allow rules, output, auto rules, the console, commands and MCP tools, refusal codes |
+| [docs/configuration.md](docs/configuration.md) | The company's managed configuration (`managed.toml`, lockfamily's [docs/managed.md](https://github.com/DavidGodefroid/lockfamily/blob/main/docs/managed.md)): bounds, defaults, managed profiles, `lockssh managed show\|check` |
 | [docs/docker.md](docs/docker.md) | The image, the launcher, project setup, Vault, wiring each agent, an agent in its own container |
 | [docs/security-model.md](docs/security-model.md) | Parties, what lockssh enforces, what it does not |
 | [CHANGELOG.md](CHANGELOG.md) | Release notes |
