@@ -8,6 +8,10 @@ All notable changes to lockssh. The format follows
 
 ### Added
 
+- Homebrew: `brew install davidgodefroid/tap/lockssh` (homebrew-tap#6), at
+  v0.1.0. The release workflow's `tap` job warns on the run when
+  `TAP_DISPATCH_TOKEN` is not set, instead of skipping the bump silently (#6).
+
 - The website in `site/`, at https://davidgodefroid.github.io/lockssh/
   (home, install, how it works, security, FAQ), checked by
   `scripts/check-site.py` and deployed by the `pages` workflow; a test
