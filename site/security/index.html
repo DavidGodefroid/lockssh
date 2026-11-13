@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>lockssh security model: what it enforces, what it does not</title>
+  <meta name="description" content="What lockssh enforces between an AI agent and your servers: the key in the console only, no shell syntax, pinned host keys, no forwarding, masked output. And what it does not mask or prevent.">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#f4efe4" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#16140f" media="(prefers-color-scheme: dark)">
+  <link rel="canonical" href="https://davidgodefroid.github.io/lockssh/security/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="lockssh">
+  <meta property="og:title" content="lockssh security model: what it enforces, what it does not">
+  <meta property="og:description" content="What lockssh enforces between an AI agent and your servers: the key in the console only, no shell syntax, pinned host keys, no forwarding, masked output. And what it does not mask or prevent.">
+  <meta property="og:url" content="https://davidgodefroid.github.io/lockssh/security/">
+  <meta property="og:locale" content="en_US">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="lockssh security model: what it enforces, what it does not">
+  <meta name="twitter:description" content="What lockssh enforces between an AI agent and your servers: the key in the console only, no shell syntax, pinned host keys, no forwarding, masked output. And what it does not mask or prevent.">
+  <link rel="icon" href="../assets/logo.svg" type="image/svg+xml">
+  <link rel="preload" href="../assets/fonts/zilla-slab-700.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="../assets/fonts/source-serif-4-400.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="../assets/tokens.css">
+  <link rel="stylesheet" href="../assets/lock-site.css">
+  <script src="../assets/anchors.js" defer></script>
+  <script src="../assets/copy.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../"><img src="../assets/logo.svg" alt="" width="32" height="32"><span class="wordmark">lockssh</span></a>
+      <nav class="site-nav" aria-label="Main">
+        <ul>
+          <li><a href="../">Home</a></li>
+          <li><a href="../install/">Install</a></li>
+          <li><a href="../how-it-works/">How it works</a></li>
+          <li><a href="../security/" aria-current="page">Security</a></li>
+          <li><a href="../faq/">FAQ</a></li>
+          <li><a href="https://github.com/DavidGodefroid/lockssh">GitHub</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+  <main id="main" tabindex="-1">
+    <div class="wrap">
+
+<p class="eyebrow">Security</p>
+<h1>Security model</h1>
+<div class="prose">
+  <p class="lead">The promise is narrow: the agent never holds the SSH key or password, never opens an SSH connection, and runs only what you allowed, with the output masked before it leaves the console.</p>
+  <p>You approve the policy and decide every ticket in <code>lox run</code>, outside the agent. The console runs in an account and a container the agent cannot read or drive.</p>
+  <p>Skills, rules and MCP tool descriptions only guide the agent; the console’s checks are the guarantee. This page summarises the <a href="https://github.com/DavidGodefroid/lockssh/blob/main/docs/security-model.md">full security model</a>.</p>
+</div>
+
+<section aria-labelledby="parties">
+  <h2 id="parties">Parties</h2>
+  <div class="table-wrap" role="region" aria-label="Who holds what, who can do what" tabindex="0">
+  <table>
+  <caption>Who holds what, who can do what</caption>
+  <thead><tr><th scope="col">Party</th><th scope="col">Holds</th><th scope="col">Can</th></tr></thead>
+  <tbody>
+  <tr><td>You</td><td>the console’s terminal, lockhub (<code>lox run</code>)</td><td>approve the policy and its loosenings, decide tickets, trust a host key, unmask</td></tr>
+  <tr><td>The console (<code>lockssh</code> account, own container)</td><td>the key or password, the SSH connection, the approved policy, the audit log</td><td>run an argv on the host, mask its output</td></tr>
+  <tr><td>The agent (<code>lockssh-clients</code>, or an <code>--allowed-uids</code> uid)</td><td>a socket in a read-only volume</td><td>ask the console; propose a policy change</td></tr>
+  <tr><td>The server</td><td>the SSH account’s rights</td><td>run what it is sent</td></tr>
+  </tbody>
+  </table>
+  </div>
+  <p class="prose">The boundary between the agent and the console is the operating system’s: separate accounts, the kernel’s peer credentials on the socket, separate containers. The <a href="https://github.com/DavidGodefroid/lockkit">lockkit</a> console framework holds it; lockssh adds the SSH side.</p>
+</section>
+
+<section aria-labelledby="enforces">
+  <h2 id="enforces">What lockssh enforces</h2>
+  <div class="table-wrap" role="region" aria-label="Guarantees and what enforces them" tabindex="0">
+  <table>
+  <caption>Guarantees and what enforces them</caption>
+  <thead><tr><th scope="col">Guarantee</th><th scope="col">Enforced by</th></tr></thead>
+  <tbody>
+  <tr><td>The key never reaches the agent</td><td>it lives in the console account’s home volume (mode 0600, refused otherwise); a passphrase or password is asked by the console or read from Vault, and wiped after use; nothing the agent reads (the socket volume, the project, a result, an error, the audit log) carries it, and errors are scrubbed</td></tr>
+  <tr><td>No shell syntax from the agent</td><td>an argv, never a command string; every argument quoted in POSIX single quotes and the line run through <code>exec</code>, so argv[0] is always a program on the host’s <code>PATH</code>, never a builtin, keyword, alias or function; control and invisible characters refused</td></tr>
+  <tr><td>Only allowed commands run unasked</td><td>the approved allow rules; anything else is refused, or on <code>exec = true</code> waits for a signed ticket bound to the argv, the agent and the policy fingerprint, and runs once</td></tr>
+  <tr><td>The policy is yours</td><td>the approved policy is the one in force; a loosening of <code>.lockssh/config.toml</code> waits for your <code>:review</code>; the agent can only queue a change request</td></tr>
+  <tr><td>Bounded runs</td><td>one SSH session per command, with no PTY, no stdin, no port, agent or X11 forwarding and no subsystem; a timeout (then SIGKILL) and an output cap per stream</td></tr>
+  <tr><td>Masked output</td><td>every byte of stdout and stderr goes through lockkit’s detectors before it leaves the console; clear output needs your switch in the console and a decided ticket, never an auto rule</td></tr>
+  <tr><td>Pinned host keys</td><td>an unknown key is trusted only by you, on the console; with a <code>known_hosts</code> file the profile names, it is refused; a changed key is always refused</td></tr>
+  <tr><td>Audit</td><td>every request, refusal, decision and run in an append-only, hash-chained log, with the command masked, never the output</td></tr>
+  </tbody>
+  </table>
+  </div>
+</section>
+
+<section aria-labelledby="injection">
+  <h2 id="injection">No shell, no climbing, no options</h2>
+  <div class="prose">
+    <p>The remote line is <code>exec</code> followed by the quoted argv: <code>exec 'systemctl' 'status' 'nginx'</code>. Nothing after it in the line can run, and an argv[0] that starts with <code>-</code> or <code>+</code> is refused.</p>
+    <p>In an allow rule, a glob never matches an argument that starts with <code>-</code> or <code>+</code>, so it cannot choose an option you never wrote: <code>git log *</code> does not allow <code>git log --output=/home/u/.bashrc</code>. A glob never covers a <code>.</code> or <code>..</code> segment, so <code>cat /var/log/*</code> does not reach <code>/etc/shadow</code>.</p>
+    <p>The SSH account’s login shell must be a POSIX shell (sh, dash, bash, ksh, zsh): another one may read the quoted arguments differently.</p>
+  </div>
+</section>
+
+<section aria-labelledby="production">
+  <h2 id="production">Production profiles</h2>
+  <ul class="prose">
+    <li>A command outside the allow list is a write, and a write on production is always a human’s decision: <code>auto.exec = "auto"</code> (and <code>auto = "full-auto"</code>) is refused when the policy loads.</li>
+    <li>Its tickets carry the <code>prod-write</code> risk.</li>
+    <li>Trusting a new host key takes the last 8 characters of its fingerprint, typed.</li>
+    <li>A root login is refused.</li>
+  </ul>
+</section>
+
+<section aria-labelledby="not-masked">
+  <h2 id="not-masked">What is not masked</h2>
+  <div class="prose">
+    <p>The default detectors find cards, emails, IBANs, public IP addresses, phone numbers and secrets (<code>password=...</code>, tokens, PEM keys, URL userinfo). They do not find person names, postal addresses, free-text personal data, or secrets without a known shape or label: those reach the agent.</p>
+    <p>Command output can be anything. Prefer commands whose output you know (status, counts, metrics) over reading files, and add mask rules for the project’s own identifiers in <code>.lockssh/pii.toml</code>.</p>
+  </div>
+</section>
+
+<section aria-labelledby="docker">
+  <h2 id="docker">What Docker does and does not separate</h2>
+  <div class="prose">
+    <p>The agent’s container holds no key, has no SSH connection and reaches the console only through the socket. A process that is neither the console account nor in <code>lockssh-clients</code> (nor an allowed uid) is refused.</p>
+    <p>Your own account is another matter: whoever can run <code>docker</code> commands can attach to the console, exec into it or open its home volume. An agent that runs shell commands as you usually can. For that boundary, run the agent in a container of its own without the Docker socket, as <a href="https://github.com/DavidGodefroid/lea">lea</a> does. <a href="https://github.com/DavidGodefroid/lockssh/blob/main/docs/docker.md#what-docker-does-and-does-not-separate">Details</a>.</p>
+  </div>
+</section>
+
+<section class="limits" aria-labelledby="residual">
+  <h2 id="residual">What lockssh does not do</h2>
+  <ul class="prose">
+    <li><strong>It does not know what a program does.</strong> A program that runs other programs or writes files from its arguments (<code>find -exec</code>, <code>awk</code>, <code>less</code>, <code>vim</code>, <code>tar</code>, <code>sudo</code>, <code>env</code>, <code>sh -c</code>, <code>xargs</code>, <code>git</code> with hooks) turns a narrow rule into a shell. Allow such programs only with literal arguments. The policy review warns; its list is a safety net, not a complete one.</li>
+    <li><strong>It does not resolve paths on the host.</strong> A rule’s path is text: a symlink under an allowed directory reads wherever it points.</li>
+    <li><strong>It does not confine the SSH account.</strong> What a command can do is what the account can do: give it only the rights the allow list needs.</li>
+    <li><strong>It does not mask what its detectors miss</strong> (<a href="#not-masked">above</a>).</li>
+    <li><strong>It does not prevent exfiltration by an allowed command.</strong> An allowed command that sends data elsewhere (<code>curl</code>, a mail command) does so.</li>
+    <li><strong>It does not separate you from your own account</strong> (<a href="#docker">above</a>).</li>
+  </ul>
+</section>
+
+<div class="more prose">
+  <p><strong>Read the source documents:</strong></p>
+  <ul>
+    <li><a href="https://github.com/DavidGodefroid/lockssh/blob/main/docs/security-model.md">docs/security-model.md</a>: the security model in full.</li>
+    <li><a href="https://github.com/DavidGodefroid/lockssh/blob/main/docs/decisions.md">docs/decisions.md</a>: each design decision and its rationale.</li>
+    <li><a href="https://github.com/DavidGodefroid/lockssh/blob/main/SECURITY.md">SECURITY.md</a>: how to report a vulnerability.</li>
+  </ul>
+</div>
+
+    </div>
+  </main>
+  <footer class="site-footer">
+    <div class="wrap footer-grid">
+      <div class="footer-about">
+        <a class="brand" href="../"><img src="../assets/logo.svg" alt="" width="32" height="32"><span class="wordmark">lockssh</span></a>
+        <p>Commands over SSH for AI agents: allow-listed commands run at once, the rest waits for you, the output comes back masked, and the SSH key never leaves the console.</p>
+        <p class="family-link">Part of the <a href="https://lockfamily.dev">Lock Family</a>, harness security for AI agents.</p>
+      </div>
+      <nav aria-labelledby="footer-lock">
+        <h2 id="footer-lock">lockssh</h2>
+        <ul>
+          <li><a href="https://github.com/DavidGodefroid/lockssh">Source on GitHub</a></li>
+          <li><a href="https://github.com/DavidGodefroid/lockssh/blob/main/README.md">README</a></li>
+          <li><a href="https://github.com/DavidGodefroid/lockssh/blob/main/docs/usage.md">Usage guide</a></li>
+          <li><a href="https://github.com/DavidGodefroid/lockssh/blob/main/docs/docker.md">Docker guide</a></li>
+          <li><a href="https://github.com/DavidGodefroid/lockssh/blob/main/docs/security-model.md">Security model</a></li>
+          <li><a href="https://github.com/DavidGodefroid/lockssh/blob/main/docs/decisions.md">Design decisions</a></li>
+          <li><a href="https://github.com/DavidGodefroid/lockssh/blob/main/CHANGELOG.md">Changelog</a></li>
+        </ul>
+      </nav>
+      <nav class="family-strip" aria-labelledby="footer-family">
+        <h2 id="footer-family">The Lock Family</h2>
+        <ul>
+          <li data-lock="locksql"><a href="https://github.com/DavidGodefroid/locksql">locksql</a><span>SQL databases, PII masked</span></li>
+          <li data-lock="lockmq"><a href="https://github.com/DavidGodefroid/lockmq">lockmq</a><span>RabbitMQ queues</span></li>
+          <li data-lock="lockfile"><a href="https://github.com/DavidGodefroid/lockfile">lockfile</a><span>Files: S3, SFTP, disk</span></li>
+          <li data-lock="lockhttp"><a href="https://github.com/DavidGodefroid/lockhttp">lockhttp</a><span>Outbound HTTP(S)</span></li>
+          <li data-lock="locklog"><a href="https://github.com/DavidGodefroid/locklog">locklog</a><span>Logs, masked search</span></li>
+          <li data-lock="lockssh" aria-current="true"><a href="https://github.com/DavidGodefroid/lockssh">lockssh</a><span>Commands over SSH</span></li>
+          <li data-lock="lockhub"><a href="https://github.com/DavidGodefroid/lockhub">lockhub</a><span>The approval hub and <code>lox</code></span></li>
+          <li data-lock="lockkit"><a href="https://github.com/DavidGodefroid/lockkit">lockkit</a><span>The shared Go core</span></li>
+          <li data-lock="lea"><a href="https://github.com/DavidGodefroid/lea">lea</a><span>Agents in containers</span></li>
+        </ul>
+      </nav>
+    </div>
+    <div class="wrap footer-bottom">
+      <p>Pre-release (v0.1.x). lockssh is licensed under the <a href="https://github.com/DavidGodefroid/lockssh/blob/main/LICENSE">Apache License 2.0</a>.</p>
+      <p><a href="https://lockfamily.dev">lockfamily.dev</a> · <a href="https://github.com/DavidGodefroid/lockfamily">the family on GitHub</a></p>
+    </div>
+  </footer>
+</body>
+</html>
