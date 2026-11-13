@@ -91,6 +91,10 @@ Human commands
   doctor     [--profile P] [--instance NAME] [--fix [--yes]] [--json]
                                         check the config, the consoles, the project's
                                         .lockssh and the agent wiring
+  managed    show | check [--profile P] [--project DIR]
+                                        the company's managed configuration (managed.toml):
+                                        show it; check the profiles against its bounds
+                                        (exit 3 on a violation)
   init       [claude|codex|cursor|gemini ...]
                                         wire agents to lockssh in the project (never asks)
   update     [vX.Y.Z]                   update the launcher and its image (on the host;
@@ -145,6 +149,8 @@ func run(e env, args []string) int {
 		return runProfile(e, args[1:])
 	case "doctor":
 		return runDoctor(e, args[1:])
+	case "managed":
+		return runManaged(e, args[1:])
 	case "init":
 		return runInit(e, args[1:])
 	case "hub-key":

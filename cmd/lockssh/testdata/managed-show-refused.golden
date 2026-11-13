@@ -1,0 +1,1 @@
+stderr: lockssh managed show: managed: $ROOT/managed.toml: version 2 is not supported (this build reads version 1)
