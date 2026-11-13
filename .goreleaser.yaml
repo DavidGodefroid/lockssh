@@ -92,5 +92,7 @@ release:
   github:
     owner: DavidGodefroid
     name: lockssh
-  prerelease: true
+  # A tag with a semver pre-release suffix (v0.3.0-rc.1) is published as a
+  # GitHub pre-release; any other tag (v0.3.0) is a full release.
+  prerelease: auto
   draft: false

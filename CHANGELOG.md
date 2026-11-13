@@ -6,6 +6,13 @@ All notable changes to lockssh. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- Releases are no longer GitHub pre-releases: a plain `vX.Y.Z` tag is
+  published as a full release marked Latest, and only a tag with a
+  pre-release suffix (`vX.Y.Z-rc.N`) stays a pre-release, as for the other
+  Locks. v0.2.0 is now marked Latest (#28).
+
 ## [0.2.0] - 2026-11-13
 
 ### Fixed
