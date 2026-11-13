@@ -65,10 +65,11 @@ func TestManagedStartCheck(t *testing.T) {
 }
 
 // The managed file's required detectors and mask rules reach the policy in
-// force: a value a managed mask rule matches is masked in the output.
+// force: a value a managed mask rule matches is masked in the output, and
+// the run's audit record carries the managed fingerprint.
 func TestManagedMasksApplied(t *testing.T) {
 	useManaged(t, "[lockssh.bounds]\ndetectors = [\"fr_nir\"]\n[[lockssh.bounds.pii_mask]]\npattern = \"days\"\n")
-	r := newRig(t, rigOpts{})
+	r := newRig(t, rigOpts{managed: true})
 	pol, err := r.be.LoadPolicy()
 	if err != nil {
 		t.Fatal(err)
@@ -80,6 +81,11 @@ func TestManagedMasksApplied(t *testing.T) {
 	out := output(t, r.call(MethodRun, Params{Argv: []string{"uptime"}}))
 	if strings.Contains(out.Stdout, "days") {
 		t.Errorf("a managed mask rule did not mask: %q", out.Stdout)
+	}
+	// lockssh's own records carry the managed fingerprint, as the
+	// console's do.
+	if fp := r.srv.Managed().Fingerprint; !strings.Contains(r.auditLog(), `"managed":"`+fp+`"`) {
+		t.Errorf("no managed fingerprint in the run record:\n%s", r.auditLog())
 	}
 }
 

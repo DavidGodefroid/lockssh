@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/DavidGodefroid/lockkit/audit"
 	kconfig "github.com/DavidGodefroid/lockkit/config"
 	"github.com/DavidGodefroid/lockkit/console"
 	"github.com/DavidGodefroid/lockkit/kit"
@@ -134,6 +135,17 @@ func (b *Backend) LoadPolicy() (console.Policy, error) {
 }
 
 var _ console.ManagedBackend = (*Backend)(nil)
+
+// stampManaged records in b the fingerprint of the company's managed file
+// in force: the console stamps its own records, env.Audit writes lockssh's
+// as they are.
+func stampManaged(env console.Env, b *audit.Base) {
+	if m, ok := env.(interface{ Managed() *managed.File }); ok {
+		if f := m.Managed(); f != nil {
+			b.Managed = f.Fingerprint
+		}
+	}
+}
 
 // ManagedBounds implements console.ManagedBackend: p at the ceiling of
 // [lockssh.bounds]. A host, an auth method or a credentials mode outside
