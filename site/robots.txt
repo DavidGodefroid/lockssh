@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://davidgodefroid.github.io/lockssh/sitemap.xml

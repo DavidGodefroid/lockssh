@@ -8,6 +8,10 @@ All notable changes to lockssh. The format follows
 
 ### Added
 
+- The website in `site/`, at https://davidgodefroid.github.io/lockssh/
+  (home, install, how it works, security, FAQ), checked by
+  `scripts/check-site.py` and deployed by the `pages` workflow; a test
+  keeps the commands, flags and MCP tools it names to lockssh's own.
 - `docs/decisions.md`: what lockssh guards, what the agent may do over SSH,
   and the changes still to make (production `auto.exec`, globs that match
   no option and no `..` segment, the warning on programs that run code

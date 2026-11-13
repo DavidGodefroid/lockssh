@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>lockssh: your agent runs the command, you hold the key</title>
+  <meta name="description" content="lockssh lets any AI agent run commands on your servers over SSH without ever holding the key. Allow-listed commands run at once, the rest waits for you, and the output comes back masked.">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#f4efe4" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#16140f" media="(prefers-color-scheme: dark)">
+  <link rel="canonical" href="https://davidgodefroid.github.io/lockssh/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="lockssh">
+  <meta property="og:title" content="lockssh: your agent runs the command, you hold the key">
+  <meta property="og:description" content="lockssh lets any AI agent run commands on your servers over SSH without ever holding the key. Allow-listed commands run at once, the rest waits for you, and the output comes back masked.">
+  <meta property="og:url" content="https://davidgodefroid.github.io/lockssh/">
+  <meta property="og:locale" content="en_US">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="lockssh: your agent runs the command, you hold the key">
+  <meta name="twitter:description" content="lockssh lets any AI agent run commands on your servers over SSH without ever holding the key. Allow-listed commands run at once, the rest waits for you, and the output comes back masked.">
+  <link rel="icon" href="assets/logo.svg" type="image/svg+xml">
+  <link rel="preload" href="assets/fonts/zilla-slab-700.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="assets/fonts/source-serif-4-400.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="assets/tokens.css">
+  <link rel="stylesheet" href="assets/lock-site.css">
+  <script src="assets/anchors.js" defer></script>
+  <script src="assets/copy.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="./"><img src="assets/logo.svg" alt="" width="32" height="32"><span class="wordmark">lockssh</span></a>
+      <nav class="site-nav" aria-label="Main">
+        <ul>
+          <li><a href="./">Home</a></li>
+          <li><a href="install/">Install</a></li>
+          <li><a href="how-it-works/">How it works</a></li>
+          <li><a href="security/">Security</a></li>
+          <li><a href="faq/">FAQ</a></li>
+          <li><a href="https://github.com/DavidGodefroid/lockssh">GitHub</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+  <main id="main" tabindex="-1">
+    <div class="wrap">
+
+<section class="hero" aria-labelledby="hero-title">
+  <div class="hero-text">
+    <p class="eyebrow"><span class="badge">v0.1 pre-release</span>A Lock of the Lock&nbsp;Family · open&nbsp;source · Apache&nbsp;2.0</p>
+    <h1 id="hero-title">Your agent runs the command. <span class="key">You hold the key.</span></h1>
+    <p class="lead">Any AI agent can run commands on your servers over SSH without ever holding the key. Allow-listed commands run at once, the rest waits for you, and the output comes back masked.</p>
+    <div class="install">
+      <div class="install-head"><span>Set it up in your project</span></div>
+      <pre tabindex="0" aria-label="Set-up commands"><code><span class="cmd">lox init</span>
+<span class="cmd">lox add lockssh</span>
+<span class="cmd">lox run</span></code></pre>
+      <p class="install-note">lockssh comes with lockhub’s next release, after v0.10.1: an older <code>lox</code> does not know it. Docker on Linux or macOS; the <a href="install/">install guide</a> has the launcher. There is no Homebrew formula for lockssh yet.</p>
+    </div>
+    <div class="actions">
+      <a class="button primary" href="install/">Install guide</a>
+      <a class="button" href="how-it-works/">How it works</a>
+      <a class="button" href="https://github.com/DavidGodefroid/lockssh">GitHub</a>
+    </div>
+    <p class="hub-line">Part of the <a href="https://lockfamily.dev">Lock Family</a>: one hub (<code>lox run</code>) approves for every Lock.</p>
+  </div>
+  <figure class="hero-aside ticket" aria-labelledby="ticket-caption">
+    <div class="ticket-face">
+      <p class="ticket-head"><span>lockssh · profile web</span><span>lox run · default rules</span></p>
+      <dl class="ticket-fields">
+        <div class="wide"><dt>systemctl status nginx</dt><dd><span class="status auto">free</span>allow rule <code>systemctl status *</code><span class="note">Runs at once. A client address in the output comes back as <span class="masked">⟦ip:9K2QF7XM3RDA⟧</span>.</span></dd></div>
+        <div class="wide"><dt>systemctl restart nginx</dt><dd><span class="status asked">asked</span>no allow rule, <code>exec = true</code><span class="note">A signed ticket: it runs once, for that agent and that argv.</span></dd></div>
+        <div class="wide"><dt>rm -rf /var/log/nginx</dt><dd><span class="status denied">refused</span>no allow rule, <code>exec = false</code><span class="note"><code>E_NOT_ALLOWED</code>: nothing runs.</span></dd></div>
+      </dl>
+      <p class="stamp">Approved · <kbd>y</kbd></p>
+    </div>
+    <div class="ticket-stub">
+      <p><span class="label">What never leaves the console</span></p>
+      <p>The SSH key or password, the connection, and any output before it is masked.</p>
+    </div>
+    <figcaption id="ticket-caption">Three requests on one profile, and what happens to each with the default rules.</figcaption>
+  </figure>
+</section>
+
+<section class="demo-section" aria-labelledby="demo">
+  <h2 id="demo" class="visually-hidden">See it run</h2>
+  <figure class="demo">
+    <a class="demo-link" href="assets/demo.svg"><img src="assets/demo.svg" alt="An agent checks nginx on web1 through lockssh. systemctl status and journalctl match allow rules and run at once; the client address in the log comes back masked. The restart matches no allow rule: lox run shows the ticket, the human types y, and the agent runs it once. The SSH key stays in the lockssh console." width="1200" height="660" aria-describedby="demo-caption"></a>
+    <figcaption id="demo-caption">An agent (here Claude Code) checks nginx on <code>web1</code>. The status and the logs match allow rules and run at once; the restart waits for your <kbd>y</kbd> in <code>lox run</code>, then runs once.</figcaption>
+  </figure>
+</section>
+
+<section aria-labelledby="answer">
+  <h2 id="answer">What the agent gets</h2>
+  <p class="prose">The agent sends an argv, never a command line. <code>lockssh_run</code> with <code>["journalctl", "-u", "nginx", "-n", "2", "--no-pager"]</code> answers:</p>
+  <pre tabindex="0" class="term"><code>{
+  "command": "journalctl -u nginx -n 2 --no-pager",
+  "rule": "journalctl -u * -n * --no-pager",
+  "action": "run",
+  "exit_status": 0,
+  "stdout": "[alert] worker process 812 exited on signal 9\n[error] upstream timed out, client: ⟦ip:9K2QF7XM3RDA⟧\n",
+  "stderr": "",
+  "duration_ms": 41,
+  "masked": {"ip": 1}
+}</code></pre>
+  <div class="prose">
+    <p>The same value gets the same pseudonym for the whole console run, so the agent can still correlate; the next run draws new ones.</p>
+    <p>A failing command is a result, not an error: its exit status and its stderr, masked like stdout.</p>
+  </div>
+</section>
+
+<section aria-labelledby="why">
+  <h2 id="why">Why lockssh?</h2>
+  <div class="prose">
+    <p>An agent is good at the routine checks on a server: is the service up, what do the last errors say, is the disk full.</p>
+    <p>Giving it an SSH key gives it a shell: every command, every file the account can read, and the key itself to copy.</p>
+    <p>lockssh keeps the key and the connection in a console of yours, runs the commands you allowed, and asks you about the rest.</p>
+  </div>
+<div class="table-wrap" role="region" aria-label="An agent with an SSH key compared with lockssh" tabindex="0">
+<table class="compare">
+<caption>An agent with an SSH key compared with lockssh</caption>
+<thead><tr><th scope="col"><span class="visually-hidden">Property</span></th><th scope="col">Agent holds the key</th><th scope="col">lockssh</th></tr></thead>
+<tbody>
+<tr><th scope="row">Agent never holds the key, the password or the connection</th><td class="no">No</td><td class="yes">Yes</td></tr>
+<tr><th scope="row">Agent cannot inject shell syntax</th><td class="no">No</td><td class="yes">Yes</td></tr>
+<tr><th scope="row">Only the commands you allowed run unasked</th><td class="no">No</td><td class="yes">Yes</td></tr>
+<tr><th scope="row">Anything else waits for you, then runs once</th><td class="no">No</td><td class="yes">Yes</td></tr>
+<tr><th scope="row">Output masked before the model sees it</th><td class="no">No</td><td class="yes">Yes</td></tr>
+<tr><th scope="row">Host keys trusted only by you</th><td class="no">No</td><td class="yes">Yes</td></tr>
+<tr><th scope="row">No port, agent or X11 forwarding</th><td class="no">No</td><td class="yes">Yes</td></tr>
+<tr><th scope="row">Append-only audit of every command</th><td class="no">No</td><td class="yes">Yes</td></tr>
+</tbody>
+</table>
+</div>
+  <blockquote><p>The agent runs what you allowed. The key stays with you.</p></blockquote>
+</section>
+
+<section aria-labelledby="highlights">
+  <h2 id="highlights">Highlights</h2>
+  <ul class="cards">
+    <li><span class="icon" aria-hidden="true">🔑</span><h3>One key holder</h3><p>The key or password lives in the console’s account (mode 0600). A passphrase is asked at start or read from Vault. Never in the agent’s account, a result, an error or the audit.</p></li>
+    <li><span class="icon" aria-hidden="true">✅</span><h3>Allow rules, no prompt</h3><p><code>systemctl status *</code>, <code>journalctl -u * -n * --no-pager</code>: a command an approved rule matches runs at once. The program is always literal.</p></li>
+    <li><span class="icon" aria-hidden="true">👤</span><h3>The rest, approved</h3><p>Anything else is refused or, with <code>exec = true</code>, becomes a signed ticket you decide in <code>lox run</code>. It runs once, for that agent, that argv, that policy.</p></li>
+    <li><span class="icon" aria-hidden="true">🚫</span><h3>No shell</h3><p>Every argument is quoted: <code>;</code>, <code>|</code>, <code>$(...)</code> stay literal. Globs never match an option or climb out with <code>..</code>.</p></li>
+    <li><span class="icon" aria-hidden="true">🫥</span><h3>Masked output</h3><p>stdout and stderr are capped, then masked: emails, public IPs, cards, IBANs, phones, secrets. Clear output needs your switch and a ticket.</p></li>
+    <li><span class="icon" aria-hidden="true">📌</span><h3>Pinned host keys</h3><p>A host key the console has never seen is trusted only on your answer; a changed key is always refused.</p></li>
+    <li><span class="icon" aria-hidden="true">⏱️</span><h3>Bounded runs</h3><p>One SSH session per command: no PTY, no stdin, no forwarding. A timeout (30 s by default) and an output cap per stream.</p></li>
+    <li><span class="icon" aria-hidden="true">📜</span><h3>Audit for you only</h3><p>Every request, refusal, decision and run goes to an append-only, hash-chained log in the console account, with the command masked and never its output.</p></li>
+  </ul>
+</section>
+
+<section aria-labelledby="quick-start">
+  <h2 id="quick-start">Quick start</h2>
+  <ol class="steps prose">
+    <li><p>Install the <code>lockssh</code> launcher and lockhub’s <code>lox</code> from its release after v0.10.1 (<a href="install/">install guide</a>). Docker must be running.</p></li>
+    <li><p>In your project, write a <code>lockfamily.yaml</code> with the hub alone (once):</p>
+      <pre tabindex="0"><code>lox init</code></pre></li>
+    <li><p>Add an SSH host: host, port, login, key file in the lock’s home, allow rules. Never a secret.</p>
+      <pre tabindex="0"><code>lox add lockssh</code></pre></li>
+    <li><p>In a terminal of its own, outside any agent, keep <code>lox run</code> open. It starts the console and serves your decisions.</p>
+      <pre tabindex="0"><code>lox run</code></pre></li>
+    <li><p>Ask your agent: <em>“Is nginx running on web1? Show the last errors.”</em> It calls <code>lockssh_status</code>, then <code>lockssh_run</code>.</p></li>
+  </ol>
+  <div class="prose">
+    <p><code>lox add</code> wires Claude Code. For Codex, Cursor or Gemini CLI, also run <code>lockssh init codex</code> (or <code>cursor</code>, <code>gemini</code>).</p>
+    <p class="link-line"><a href="install/">Step by step: the install guide</a></p>
+  </div>
+</section>
+
+<section aria-labelledby="limits">
+  <h2 id="limits">Know the limits</h2>
+  <div class="prose">
+    <p>A rule allows a program with arguments; it cannot know what the program does with them. Never allow <code>find -exec</code>, <code>sh -c</code>, <code>sudo</code>, editors or pagers with globs.</p>
+    <p>Masking covers what the detectors recognise: names, postal addresses and free text reach the agent.</p>
+    <p>What a command can do is what the SSH account can do: give lockssh an account of its own, with only the rights the allow list needs.</p>
+    <p class="link-line"><a href="security/">Read the security model</a></p>
+  </div>
+</section>
+
+    </div>
+  </main>
+  <footer class="site-footer">
+    <div class="wrap footer-grid">
+      <div class="footer-about">
+        <a class="brand" href="./"><img src="assets/logo.svg" alt="" width="32" height="32"><span class="wordmark">lockssh</span></a>
+        <p>Commands over SSH for AI agents: allow-listed commands run at once, the rest waits for you, the output comes back masked, and the SSH key never leaves the console.</p>
+        <p class="family-link">Part of the <a href="https://lockfamily.dev">Lock Family</a>, harness security for AI agents.</p>
+      </div>
+      <nav aria-labelledby="footer-lock">
+        <h2 id="footer-lock">lockssh</h2>
+        <ul>
+          <li><a href="https://github.com/DavidGodefroid/lockssh">Source on GitHub</a></li>
+          <li><a href="https://github.com/DavidGodefroid/lockssh/blob/main/README.md">README</a></li>
+          <li><a href="https://github.com/DavidGodefroid/lockssh/blob/main/docs/usage.md">Usage guide</a></li>
+          <li><a href="https://github.com/DavidGodefroid/lockssh/blob/main/docs/docker.md">Docker guide</a></li>
+          <li><a href="https://github.com/DavidGodefroid/lockssh/blob/main/docs/security-model.md">Security model</a></li>
+          <li><a href="https://github.com/DavidGodefroid/lockssh/blob/main/docs/decisions.md">Design decisions</a></li>
+          <li><a href="https://github.com/DavidGodefroid/lockssh/blob/main/CHANGELOG.md">Changelog</a></li>
+        </ul>
+      </nav>
+      <nav class="family-strip" aria-labelledby="footer-family">
+        <h2 id="footer-family">The Lock Family</h2>
+        <ul>
+          <li data-lock="locksql"><a href="https://github.com/DavidGodefroid/locksql">locksql</a><span>SQL databases, PII masked</span></li>
+          <li data-lock="lockmq"><a href="https://github.com/DavidGodefroid/lockmq">lockmq</a><span>RabbitMQ queues</span></li>
+          <li data-lock="lockfile"><a href="https://github.com/DavidGodefroid/lockfile">lockfile</a><span>Files: S3, SFTP, disk</span></li>
+          <li data-lock="lockhttp"><a href="https://github.com/DavidGodefroid/lockhttp">lockhttp</a><span>Outbound HTTP(S)</span></li>
+          <li data-lock="locklog"><a href="https://github.com/DavidGodefroid/locklog">locklog</a><span>Logs, masked search</span></li>
+          <li data-lock="lockssh" aria-current="true"><a href="https://github.com/DavidGodefroid/lockssh">lockssh</a><span>Commands over SSH</span></li>
+          <li data-lock="lockhub"><a href="https://github.com/DavidGodefroid/lockhub">lockhub</a><span>The approval hub and <code>lox</code></span></li>
+          <li data-lock="lockkit"><a href="https://github.com/DavidGodefroid/lockkit">lockkit</a><span>The shared Go core</span></li>
+          <li data-lock="lea"><a href="https://github.com/DavidGodefroid/lea">lea</a><span>Agents in containers</span></li>
+        </ul>
+      </nav>
+    </div>
+    <div class="wrap footer-bottom">
+      <p>Pre-release (v0.1.x). lockssh is licensed under the <a href="https://github.com/DavidGodefroid/lockssh/blob/main/LICENSE">Apache License 2.0</a>.</p>
+      <p><a href="https://lockfamily.dev">lockfamily.dev</a> · <a href="https://github.com/DavidGodefroid/lockfamily">the family on GitHub</a></p>
+    </div>
+  </footer>
+</body>
+</html>

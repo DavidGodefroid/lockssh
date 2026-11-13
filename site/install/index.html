@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Install lockssh: lox add, the launcher, your agent</title>
+  <meta name="description" content="Install lockssh: the signed launcher and image, an SSH host profile with lox add lockssh, the console under lox run, and any MCP client wired with lockssh init.">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#f4efe4" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#16140f" media="(prefers-color-scheme: dark)">
+  <link rel="canonical" href="https://davidgodefroid.github.io/lockssh/install/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="lockssh">
+  <meta property="og:title" content="Install lockssh: lox add, the launcher, your agent">
+  <meta property="og:description" content="Install lockssh: the signed launcher and image, an SSH host profile with lox add lockssh, the console under lox run, and any MCP client wired with lockssh init.">
+  <meta property="og:url" content="https://davidgodefroid.github.io/lockssh/install/">
+  <meta property="og:locale" content="en_US">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Install lockssh: lox add, the launcher, your agent">
+  <meta name="twitter:description" content="Install lockssh: the signed launcher and image, an SSH host profile with lox add lockssh, the console under lox run, and any MCP client wired with lockssh init.">
+  <link rel="icon" href="../assets/logo.svg" type="image/svg+xml">
+  <link rel="preload" href="../assets/fonts/zilla-slab-700.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="../assets/fonts/source-serif-4-400.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="../assets/tokens.css">
+  <link rel="stylesheet" href="../assets/lock-site.css">
+  <script src="../assets/anchors.js" defer></script>
+  <script src="../assets/copy.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../"><img src="../assets/logo.svg" alt="" width="32" height="32"><span class="wordmark">lockssh</span></a>
+      <nav class="site-nav" aria-label="Main">
+        <ul>
+          <li><a href="../">Home</a></li>
+          <li><a href="../install/" aria-current="page">Install</a></li>
+          <li><a href="../how-it-works/">How it works</a></li>
+          <li><a href="../security/">Security</a></li>
+          <li><a href="../faq/">FAQ</a></li>
+          <li><a href="https://github.com/DavidGodefroid/lockssh">GitHub</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+  <main id="main" tabindex="-1">
+    <div class="wrap">
+
+<p class="eyebrow">Install</p>
+<h1>Install lockssh</h1>
+<div class="prose">
+  <p class="lead">lockssh runs in Docker. You install one <code>lockssh</code> command, a launcher that runs every command in the signed release image, and lockhub’s <code>lox</code>, which starts the console and serves your decisions.</p>
+</div>
+
+<section aria-labelledby="status">
+  <h2 id="status">Where things stand</h2>
+  <div class="prose">
+    <p>lockssh v0.1.0 is the first release. <code>lox add lockssh</code> and <code>lox run</code> serving it are on lockhub’s main branch (<a href="https://github.com/DavidGodefroid/lockhub/issues/133">lockhub#133</a>), in its next release: lockhub v0.10.1 does not know lockssh yet, and an older <code>lox</code> cannot start its console.</p>
+    <p>There is no Homebrew formula for lockssh yet: it comes with the Homebrew tap and the Lock Family installer, next. For the rest of the family:</p>
+  </div>
+  <div class="install">
+    <div class="install-head"><span>The rest of the family, with Homebrew</span></div>
+    <pre tabindex="0" aria-label="Install commands"><code><span class="cmd">brew trust davidgodefroid/tap</span>
+<span class="cmd">brew install davidgodefroid/tap/lockfamily</span></code></pre>
+    <p class="install-note">Homebrew asks you to trust a third-party tap once. Install lockssh itself with its launcher, below.</p>
+  </div>
+</section>
+
+<section aria-labelledby="requirements">
+  <h2 id="requirements">Requirements</h2>
+  <ul class="prose">
+    <li><strong>Docker</strong>, on Linux or on macOS (Docker Desktop). On Windows, install in WSL 2 with Docker Desktop’s WSL integration and run it there.</li>
+    <li><strong><a href="https://docs.sigstore.dev/cosign/system_config/installation/">cosign</a></strong> on <code>PATH</code>, for the install script and <code>lockssh update</code>: they check the release’s and the image’s signatures.</li>
+    <li><strong>An SSH account for lockssh</strong> on each server, with only the rights the allow list needs: a user of its own, no <code>sudo</code>, read access to the logs it must read. Its login shell must be a POSIX shell.</li>
+  </ul>
+</section>
+
+<section aria-labelledby="launcher">
+  <h2 id="launcher">The launcher</h2>
+  <p class="prose">Download the install script from the release you install, read it, then run it with that release:</p>
+  <pre tabindex="0" class="term"><code>V=vX.Y.Z
+curl -fsSLO "https://raw.githubusercontent.com/DavidGodefroid/lockssh/$V/scripts/install.sh"
+less install.sh                     <span class="cmt"># read it first</span>
+LOCKSSH_VERSION=$V sh install.sh</code></pre>
+  <div class="prose">
+    <p>It checks the release’s cosign signatures and checksum, and installs the launcher as <code>/usr/local/bin/lockssh</code> (with <code>sudo</code> when needed; <code>LOCKSSH_INSTALL_DIR</code> for another directory).</p>
+    <p>The launcher runs its release’s image, <code>ghcr.io/davidgodefroid/lockssh:X.Y.Z</code>, by its verified digest, never by a tag that could be moved. Each command runs with the account it needs: the console as <code>lockssh</code>, the agent’s commands as <code>agent</code>, with the socket volume only. <a href="https://github.com/DavidGodefroid/lockssh/blob/main/docs/docker.md#what-runs-where">What runs where</a>.</p>
+  </div>
+  <pre tabindex="0" class="term"><code>lockssh version             <span class="cmt"># the launcher's version and its image's</span>
+lockssh update [vX.Y.Z]     <span class="cmt"># a new launcher, then docker pull; signatures checked</span></code></pre>
+  <p class="prose">For <code>credentials = "vault"</code>, the release’s <code>-vault</code> image adds the pinned Vault CLI: set <code>LOCKSSH_VAULT=1</code>.</p>
+</section>
+
+<section aria-labelledby="quick-start">
+  <h2 id="quick-start">Set up a project</h2>
+  <p class="prose">In your project, with lockhub’s <code>lox</code> from its release after v0.10.1:</p>
+  <pre tabindex="0" class="term"><code>lox init           <span class="cmt"># a lockfamily.yaml with the hub alone (once)</span>
+lox add lockssh    <span class="cmt"># host, port, login, key file, allow rules; never a secret</span>
+lox run            <span class="cmt"># in a terminal of its own: starts the console, serves the decisions</span></code></pre>
+  <div class="prose">
+    <p><code>lox add lockssh</code> runs <code>lockssh profile add</code>, <code>lockssh init claude</code> and <code>lockssh doctor</code> for you, declares the lock in <code>lockfamily.yaml</code>, offers to copy your key into the console’s home, and shows the lock’s review as it starts.</p>
+    <p>Reach the console’s own questions (the policy review, a new host key, a passphrase) with <code>lox attach NAME</code>, where <code>NAME</code> is the lock’s name; detach with Ctrl-P Ctrl-Q.</p>
+  </div>
+</section>
+
+<section aria-labelledby="profile">
+  <h2 id="profile">An SSH host profile</h2>
+  <div class="prose">
+    <p>A profile is one SSH host, in the project’s <code>.lockssh/config.toml</code>, which is yours. It never holds a secret. <code>lox add lockssh</code> writes it through <code>lockssh profile add</code>, which you can also run yourself:</p>
+  </div>
+  <pre tabindex="0" class="term"><code>lockssh profile add --profile web --host web1.example.com --user lockssh-ro \
+  --key "~/.ssh/id_ed25519" --allow uptime --allow "systemctl status *"</code></pre>
+  <pre tabindex="0"><code>[profiles.web]
+host        = "web1.example.com"
+port        = 22
+user        = "lockssh-ro"
+auth        = "key"                <span class="cmt"># key | password</span>
+key         = "~/.ssh/id_ed25519"  <span class="cmt"># in the console account, never the agent's</span>
+credentials = "none"               <span class="cmt"># key: none | ask | keychain | vault</span>
+production  = false
+exec        = false                <span class="cmt"># true: a command outside allow may be asked</span>
+allow       = ["uptime", "df -h", "systemctl status *", "journalctl -u * -n * --no-pager"]
+
+[profiles.web.limits]
+request_timeout  = "30s"           <span class="cmt"># a command running longer is killed</span>
+max_output_bytes = 65536           <span class="cmt"># per stream, before masking</span></code></pre>
+  <div class="prose">
+    <p>The key goes in the console’s home volume, owned by the console account, mode 0600. A passphrase or password is asked by the console at its start (<code>ask</code>) or read from Vault (<code>vault</code>); the container has no OS keychain.</p>
+    <p>Every key of the profile, the allow-rule syntax and the auto rules are in the <a href="https://github.com/DavidGodefroid/lockssh/blob/main/docs/usage.md#profiles">usage guide</a>.</p>
+  </div>
+</section>
+
+<section aria-labelledby="wire">
+  <h2 id="wire">Wire your agent</h2>
+  <pre tabindex="0" class="term"><code>lockssh init codex          <span class="cmt"># or claude, cursor, gemini; this project</span>
+lockssh doctor --fix        <span class="cmt"># the config, the consoles, .lockssh, the agent wiring</span></code></pre>
+  <div class="prose">
+    <p><code>lockssh init</code> writes the MCP command, <code>lockssh mcp</code>, which runs through the launcher in a throwaway container. Any MCP client works; <code>init</code> wires Claude Code, Codex, Cursor and Gemini CLI.</p>
+    <p>Keep the client’s tool timeouts: the console waits up to 5 minutes for an approval. Start the agent at the project root, or below it.</p>
+  </div>
+</section>
+
+<section aria-labelledby="build">
+  <h2 id="build">Your own build</h2>
+  <pre tabindex="0" class="term"><code>docker build -t lockssh https://github.com/DavidGodefroid/lockssh.git
+LOCKSSH_IMAGE=lockssh lockssh version</code></pre>
+  <p class="prose">From a clone, <code>sh scripts/lockssh …</code> runs the image tagged <code>lockssh</code>. An agent in a container of its own, without the Docker socket: <a href="https://github.com/DavidGodefroid/lockssh/blob/main/docs/docker.md#agent-in-its-own-container">the Docker guide</a>.</p>
+</section>
+
+    </div>
+  </main>
+  <footer class="site-footer">
+    <div class="wrap footer-grid">
+      <div class="footer-about">
+        <a class="brand" href="../"><img src="../assets/logo.svg" alt="" width="32" height="32"><span class="wordmark">lockssh</span></a>
+        <p>Commands over SSH for AI agents: allow-listed commands run at once, the rest waits for you, the output comes back masked, and the SSH key never leaves the console.</p>
+        <p class="family-link">Part of the <a href="https://lockfamily.dev">Lock Family</a>, harness security for AI agents.</p>
+      </div>
+      <nav aria-labelledby="footer-lock">
+        <h2 id="footer-lock">lockssh</h2>
+        <ul>
+          <li><a href="https://github.com/DavidGodefroid/lockssh">Source on GitHub</a></li>
+          <li><a href="https://github.com/DavidGodefroid/lockssh/blob/main/README.md">README</a></li>
+          <li><a href="https://github.com/DavidGodefroid/lockssh/blob/main/docs/usage.md">Usage guide</a></li>
+          <li><a href="https://github.com/DavidGodefroid/lockssh/blob/main/docs/docker.md">Docker guide</a></li>
+          <li><a href="https://github.com/DavidGodefroid/lockssh/blob/main/docs/security-model.md">Security model</a></li>
+          <li><a href="https://github.com/DavidGodefroid/lockssh/blob/main/docs/decisions.md">Design decisions</a></li>
+          <li><a href="https://github.com/DavidGodefroid/lockssh/blob/main/CHANGELOG.md">Changelog</a></li>
+        </ul>
+      </nav>
+      <nav class="family-strip" aria-labelledby="footer-family">
+        <h2 id="footer-family">The Lock Family</h2>
+        <ul>
+          <li data-lock="locksql"><a href="https://github.com/DavidGodefroid/locksql">locksql</a><span>SQL databases, PII masked</span></li>
+          <li data-lock="lockmq"><a href="https://github.com/DavidGodefroid/lockmq">lockmq</a><span>RabbitMQ queues</span></li>
+          <li data-lock="lockfile"><a href="https://github.com/DavidGodefroid/lockfile">lockfile</a><span>Files: S3, SFTP, disk</span></li>
+          <li data-lock="lockhttp"><a href="https://github.com/DavidGodefroid/lockhttp">lockhttp</a><span>Outbound HTTP(S)</span></li>
+          <li data-lock="locklog"><a href="https://github.com/DavidGodefroid/locklog">locklog</a><span>Logs, masked search</span></li>
+          <li data-lock="lockssh" aria-current="true"><a href="https://github.com/DavidGodefroid/lockssh">lockssh</a><span>Commands over SSH</span></li>
+          <li data-lock="lockhub"><a href="https://github.com/DavidGodefroid/lockhub">lockhub</a><span>The approval hub and <code>lox</code></span></li>
+          <li data-lock="lockkit"><a href="https://github.com/DavidGodefroid/lockkit">lockkit</a><span>The shared Go core</span></li>
+          <li data-lock="lea"><a href="https://github.com/DavidGodefroid/lea">lea</a><span>Agents in containers</span></li>
+        </ul>
+      </nav>
+    </div>
+    <div class="wrap footer-bottom">
+      <p>Pre-release (v0.1.x). lockssh is licensed under the <a href="https://github.com/DavidGodefroid/lockssh/blob/main/LICENSE">Apache License 2.0</a>.</p>
+      <p><a href="https://lockfamily.dev">lockfamily.dev</a> · <a href="https://github.com/DavidGodefroid/lockfamily">the family on GitHub</a></p>
+    </div>
+  </footer>
+</body>
+</html>

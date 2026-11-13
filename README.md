@@ -25,7 +25,8 @@
   <a href="#quick-start">Quick start</a> ·
   <a href="#how-it-works">How it works</a> ·
   <a href="#documentation">Docs</a> ·
-  <a href="#the-lock-family">Lock Family</a>
+  <a href="#the-lock-family">Lock Family</a> ·
+  <a href="https://davidgodefroid.github.io/lockssh/">Website</a>
 </p>
 
 ---
