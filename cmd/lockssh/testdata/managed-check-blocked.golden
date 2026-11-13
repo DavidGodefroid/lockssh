@@ -1,0 +1,2 @@
+blocked by company policy: lockssh.bounds.exec = false (profile dev: exec = true)
+blocked by company policy: lockssh.bounds.hosts = *.example.com (profile evil: host = evil.test)

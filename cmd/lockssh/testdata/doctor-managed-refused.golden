@@ -1,0 +1,1 @@
+{"lock":"lockssh","ok":false,"fixed":[],"checks":[{"check":"managed","status":"fail","detail":"managed: $ROOT/managed.toml: version 2 is not supported (this build reads version 1)"},{"check":"config","status":"fail","detail":"managed: $ROOT/managed.toml: version 2 is not supported (this build reads version 1)"}]}

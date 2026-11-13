@@ -6,12 +6,33 @@ All notable changes to lockssh. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- The launcher mounts the machine's managed directory (`/etc/lockfamily`,
+  `/Library/Application Support/lockfamily` on macOS) read-only on
+  `/etc/lockfamily` in its containers, as `lox run` does in its locks:
+  `lockssh managed show`, `managed check`, `doctor` and the other commands
+  run from the host see the company's managed configuration (#25).
+
+### Changed
+
+- lockkit v0.18.0 (from v0.14.1): package `managed` and its console
+  integration; `lockssh init`'s allow note is lockkit's new default text
+  (#17).
+
 ### Added
 
 - Homebrew: `brew install davidgodefroid/tap/lockssh` (homebrew-tap#6), at
   v0.1.0. The release workflow's `tap` job warns on the run when
   `TAP_DISPATCH_TOKEN` is not set, instead of skipping the bump silently (#6).
-
+- The company's managed configuration: lockssh enforces the `[lockssh]`
+  section of the Lock Family's `managed.toml` (bounds the user may tighten
+  but never loosen, managed defaults, managed profiles, always-on detectors
+  and `pii_mask` rules, `[family] vault.required`), refused before any
+  prompt at start and at every policy poll. New `lockssh managed show` and
+  `lockssh managed check` (exit 3 on a violation, which lox runs before it
+  starts the lock), a `managed` line in `lockssh doctor`, and
+  `docs/configuration.md` (#17).
 - The website in `site/`, at https://davidgodefroid.github.io/lockssh/
   (home, install, how it works, security, FAQ), checked by
   `scripts/check-site.py` and deployed by the `pages` workflow; a test

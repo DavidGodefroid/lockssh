@@ -253,7 +253,9 @@ func TestProfileAddInteractive(t *testing.T) {
 // CheckProfileName refuses an invalid one without quoting it, and a
 // duplicate is not named.
 func TestProfileAddNameDoesNotEcho(t *testing.T) {
-	const tok = "glsa_CanarySecretToken123"
+	// Not "...SecretToken...": lockkit refuses a config key that looks
+	// like a secret before profile add reaches the duplicate check.
+	const tok = "glsa_Canary123"
 	dupCfg := strings.Replace(oneProfile, "[profiles.dev]", "[profiles."+tok+"]", 1)
 	if dupCfg == oneProfile {
 		t.Fatal("oneProfile has no [profiles.dev]")

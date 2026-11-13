@@ -124,6 +124,13 @@ func runDoctor(e env, args []string) int {
 			return d.finish(exitFail)
 		}
 	}
+	// The company's managed file first: a refused one also refuses the
+	// config below, and this line says why.
+	if status, detail := managedLine(); status == verbs.StatusOK {
+		d.add(verbs.Check{Check: "managed", Status: status, Detail: detail}, "✓ managed: "+detail)
+	} else {
+		d.add(verbs.Check{Check: "managed", Status: status, Detail: detail}, "✗ managed: "+detail)
+	}
 	ps, root, err := e.loadProfiles()
 	if err != nil {
 		d.add(verbs.Check{Check: "config", Status: verbs.StatusFail, Detail: err.Error()}, "✗ config: "+err.Error())

@@ -9,8 +9,9 @@ running, so the first command waits for its connect ticket: the decision
 on a real hub is lockhub's own end-to-end test); the agent's commands run in
 throwaway containers that share only the socket volume and the project.
 It also checks the image's accounts and modes, that the console refuses to
-start without its hub, and that it refuses a peer that is neither lockssh
-nor in lockssh-clients.
+start without its hub, that it refuses a peer that is neither lockssh
+nor in lockssh-clients, and that it enforces the company's managed file
+(/etc/lockfamily/managed.toml, mounted as lox mounts it).
 
     python3 test/docker/e2e.py IMAGE
 
@@ -32,7 +33,7 @@ import time
 
 IMAGE = sys.argv[1] if len(sys.argv) > 1 else "lockssh"
 NET, SSHD, CONSOLE = "lockssh-e2e-net", "lockssh-e2e-sshd", "lockssh-e2e-console"
-RUN_VOL, HOME_VOL = "lockssh-e2e-run", "lockssh-e2e-home"
+RUN_VOL, HOME_VOL, MANAGED_VOL = "lockssh-e2e-run", "lockssh-e2e-home", "lockssh-e2e-managed"
 SSH_IMAGE = "lscr.io/linuxserver/openssh-server:latest"
 SSH_USER = "deploy"
 HUB_URL, INSTANCE = "http://lockssh-e2e-hub:8443", "web-e2e"
@@ -56,7 +57,7 @@ def sh(*args, check_=True, **kw):
 
 def cleanup():
     sh("docker", "rm", "-f", CONSOLE, SSHD, check_=False)
-    sh("docker", "volume", "rm", "-f", RUN_VOL, HOME_VOL, check_=False)
+    sh("docker", "volume", "rm", "-f", RUN_VOL, HOME_VOL, MANAGED_VOL, check_=False)
     sh("docker", "network", "rm", NET, check_=False)
 
 
@@ -107,7 +108,7 @@ def start_sshd():
 class Console:
     """The console in a pseudo-terminal, answering its prompts."""
 
-    def __init__(self, project, *extra):
+    def __init__(self, project, *extra, docker=()):
         hub = ["--hub", HUB_URL, "--hub-plain-http", "--hub-key-file", os.path.join(project, "hub.pub"), "--instance", INSTANCE]
         self.out = b""
         self.lock = threading.Lock()
@@ -116,7 +117,7 @@ class Console:
         if self.pid == 0:
             os.execvp("docker", ["docker", "run", "-it", "--rm", "--name", CONSOLE, "--user", "lockssh",
                                  "--network", NET, "-v", f"{project}:{project}",
-                                 "-v", f"{RUN_VOL}:/run/lockssh", "-v", f"{HOME_VOL}:/home/lockssh",
+                                 "-v", f"{RUN_VOL}:/run/lockssh", "-v", f"{HOME_VOL}:/home/lockssh", *docker,
                                  IMAGE, "console", "--project", project, *hub, *extra])
         threading.Thread(target=self.pump, daemon=True).start()
 
@@ -148,6 +149,82 @@ class Console:
 
     def stop(self):
         sh("docker", "rm", "-f", CONSOLE, check_=False)
+
+    def wait(self, timeout):
+        """The console's exit status, or None if it still runs after timeout."""
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            pid, status = os.waitpid(self.pid, os.WNOHANG)
+            if pid:
+                return os.waitstatus_to_exitcode(status)
+            time.sleep(0.5)
+        return None
+
+
+def put_managed(body, mode="0644"):
+    """The managed file in MANAGED_VOL as lox mounts it: root-owned, mode,
+    in a 0755 root-owned directory."""
+    sh("docker", "run", "--rm", "--user", "0", "--entrypoint", "sh", "-v", f"{MANAGED_VOL}:/etc/lockfamily", IMAGE, "-c",
+       'chown 0:0 /etc/lockfamily && chmod 0755 /etc/lockfamily && printf "%s" "$1" >/etc/lockfamily/managed.toml'
+       ' && chown 0:0 /etc/lockfamily/managed.toml && chmod "$2" /etc/lockfamily/managed.toml', "sh", body, mode)
+
+
+def managed_checks(project, mount):
+    """The release image, no test tag, under a managed file: the console
+    prints whose it is and records its fingerprint with the approval;
+    managed check and the console refuse a profile beyond its bounds; a
+    managed file others can write refuses the start."""
+    mm = ["-v", f"{MANAGED_VOL}:/etc/lockfamily:ro"]
+    put_managed('version = 1\norganisation = "E2E Corp"\n\n[lockssh.bounds]\nexec = false\n')
+    target = f'host = "{SSHD}"\nport = 2222\nuser = "{SSH_USER}"\nkey = "~/.ssh/id_e2e"\nallow = ["uname -s"]\n'
+    with open(os.path.join(project, ".lockssh", "config.toml"), "a") as f:
+        f.write(f"\n[profiles.mdev]\n{target}\n[profiles.loose]\n{target}exec = true\n")
+
+    r = sh("docker", "run", "--rm", *mm, *mount, IMAGE, "managed", "check", check_=False)
+    check(r.returncode == 3 and "blocked by company policy: lockssh.bounds.exec = false (profile loose: exec = true)" in r.stdout,
+          f"managed check: exit 3 on a profile beyond the bounds\n{r.stdout}{r.stderr}")
+    r = sh("docker", "run", "--rm", *mm, *mount, IMAGE, "managed", "check", "--profile", "mdev", check_=False)
+    check(r.returncode == 0 and r.stdout.strip() == "within the company policy: mdev", f"managed check: a profile within them\n{r.stdout}{r.stderr}")
+    r = sh("docker", "run", "--rm", *mm, *mount, IMAGE, "managed", "show", check_=False)
+    check(r.returncode == 0 and "Managed by E2E Corp (sha256:" in r.stdout and "lockssh.bounds.exec = false" in r.stdout,
+          f"managed show\n{r.stdout}{r.stderr}")
+
+    sh("docker", "wait", CONSOLE, check_=False)
+    con = Console(project, "--profile", "mdev", docker=mm)
+    deadline, up = time.time() + 120, False
+    while time.time() < deadline:
+        if agent(project, "status", "--profile", "mdev").returncode == 0:
+            up = True
+            break
+        time.sleep(2)
+    check(up and "Managed by E2E Corp (sha256:" in con.text(), "the console starts under the managed file and names it")
+    r = sh("docker", "run", "--rm", "--user", "0", "--entrypoint", "sh", "-v", f"{HOME_VOL}:/home/lockssh", IMAGE, "-c",
+           "grep -rl managed_sha256 /home/lockssh || true")
+    check(r.stdout.strip() != "", f"the approved policy records managed_sha256\n{r.stdout}{r.stderr}")
+    con.stop()
+    if failures:
+        print(con.text()[-4000:])
+
+    # Beyond the bounds: refused before any prompt, audited refused-managed.
+    sh("docker", "wait", CONSOLE, check_=False)
+    con = Console(project, "--profile", "loose", docker=mm)
+    code = con.wait(90)
+    check(code not in (None, 0) and "lockssh.bounds.exec" in con.text() and "Apply these changes?" not in con.text(),
+          f"a profile beyond the bounds is refused at start, no prompt (exit {code})")
+    r = sh("docker", "run", "--rm", "--user", "0", "--entrypoint", "sh", "-v", f"{HOME_VOL}:/home/lockssh", IMAGE, "-c",
+           "grep -rh refused-managed /home/lockssh || true")
+    check("refused-managed" in r.stdout, f"the refusal is audited refused-managed\n{r.stdout}{r.stderr}")
+    con.stop()
+
+    # A managed file others can write is a refusal to start (fail closed).
+    put_managed('version = 1\norganisation = "E2E Corp"\n', mode="0666")
+    sh("docker", "wait", CONSOLE, check_=False)
+    con = Console(project, "--profile", "mdev", docker=mm)
+    code = con.wait(90)
+    check(code not in (None, 0) and "managed" in con.text(), f"a managed file others can write refuses the start (exit {code})")
+    con.stop()
+    if failures:
+        print(con.text()[-4000:])
 
 
 def agent(project, *args, user=None, extra=()):
@@ -294,6 +371,8 @@ def main():
         r = sh("docker", "run", "--rm", "--user", "lockssh", "-v", f"{RUN_VOL}:/run/lockssh", "-v", f"{HOME_VOL}:/home/lockssh",
                IMAGE, "console", "--allowed-uids", "0", check_=False)
         check(r.returncode != 0 and "leading zero" in r.stdout + r.stderr, f"--allowed-uids 0 refused\n{r.stdout}{r.stderr}")
+
+        managed_checks(project, mount)
     finally:
         cleanup()
     if failures:

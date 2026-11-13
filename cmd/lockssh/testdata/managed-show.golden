@@ -1,0 +1,10 @@
+Managed by Example Corp (sha256:2a6e8a56fa60)
+path: $ROOT/managed.toml
+organisation: Example Corp
+fingerprint: sha256:2a6e8a56fa604433c9d92277da2c0c8e178db6f6d53bf79ed4ac75ad0936e432
+signed: no
+lockssh.bounds.hosts = [*.example.com]
+lockssh.bounds.exec = false
+lockssh.bounds.limits.max_session = 4h0m0s
+lockssh.defaults: known_hosts
+managed profiles: prod-web
