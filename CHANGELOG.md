@@ -6,6 +6,8 @@ All notable changes to lockssh. The format follows
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-14
+
 ### Breaking
 
 - lockkit v0.20.0 (from v0.19.2): the console refuses an agent that does
