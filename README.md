@@ -39,7 +39,7 @@ It works with any MCP client (Claude Code, Codex, Cursor, Gemini CLI, …) or
 through the `lockssh` CLI.
 
 > [!NOTE]
-> **0.x**: flags and the policy format may still change between minor versions. v0.2.1 is the latest release. `lox add lockssh` and `lox run`
+> **0.x**: flags and the policy format may still change between minor versions. v0.3.0 is the latest release. `lox add lockssh` and `lox run`
 > serving it ship in lockhub v0.11.0
 > ([lockhub#133](https://github.com/DavidGodefroid/lockhub/issues/133)); an
 > older `lox` does not know lockssh.
