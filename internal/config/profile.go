@@ -85,6 +85,7 @@ type rawProfile struct {
 	VaultPath      string    `toml:"vault_path"`
 	CredentialsTTL string    `toml:"credentials_ttl"`
 	Production     bool      `toml:"production"`
+	Unconfined     bool      `toml:"unconfined"`
 	Exec           bool      `toml:"exec"`
 	Allow          []string  `toml:"allow"`
 	Detectors      []string  `toml:"detectors"`
@@ -257,7 +258,7 @@ func buildProfile(name string, r rawProfile, detectorsSet bool) (Profile, error)
 	p := Profile{
 		Name: name,
 		Base: kconfig.Base{
-			User: r.User, Credentials: cred, VaultPath: r.VaultPath, Production: r.Production,
+			User: r.User, Credentials: cred, VaultPath: r.VaultPath, Production: r.Production, Unconfined: r.Unconfined,
 			SSH: &kconfig.SSHProfile{Host: host, Port: port, User: r.User, Auth: auth, Key: r.Key, Credentials: cred},
 		},
 		KnownHosts: r.KnownHosts,

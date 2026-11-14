@@ -186,7 +186,11 @@ public IPs, cards, IBANs, phones, secrets.
    [lockhub#133](https://github.com/DavidGodefroid/lockhub/issues/133)). It shows the profile's policy for approval, logs in over SSH
    (trusting the host key only on your answer), and checks the account.
 2. The agent's `lockssh mcp` (or CLI) runs as another account and reaches
-   the console only through its socket.
+   the console only through its socket. The console serves it only if it
+   runs confined (in a container, with no reach to the host's container
+   runtime or Lock Family state, as lea runs agents); an agent on the host
+   is refused unless a non-production profile sets `unconfined = true`
+   ([docs/usage.md](docs/usage.md#profiles)).
 3. Each request is an argv, matched against the approved allow rules:
    - a match runs at once;
    - anything else is refused, or becomes a signed ticket on lockhub that you

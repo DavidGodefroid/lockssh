@@ -6,6 +6,22 @@ All notable changes to lockssh. The format follows
 
 ## [Unreleased]
 
+### Breaking
+
+- lockkit v0.20.0 (from v0.19.2): the console refuses an agent that does
+  not run confined (lockkit#133). Every client reports in its handshake
+  whether it runs in a container, with no host container runtime socket it
+  can reach, no Lock Family state and a read-only `.lockfamily/`; an agent
+  that does not, that holds the group of the host's Docker socket, or that
+  sends no report (an older lockssh client) is refused with
+  `CodeUnconfined` and audited `refused-unconfined`. The new profile key
+  `unconfined = true` serves it on a non-production profile: it is part of
+  the policy fingerprint, turning it on is a loosening the human approves,
+  the console shows a red banner and marks every audit record and hub
+  ticket of the connection unconfined. A production profile with it does
+  not start. Upgrade the client and the console together: an older console
+  refuses the new client's handshake (#35).
+
 ## [0.2.1] - 2026-11-14
 
 ### Changed
