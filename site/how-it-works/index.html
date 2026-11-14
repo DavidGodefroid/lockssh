@@ -94,14 +94,14 @@
     <li><p><strong>The console runs it</strong> in an SSH session of its own, as <code>exec</code> followed by the quoted argv: no PTY, no stdin, no forwarding, bounded in time and output.</p></li>
     <li><p><strong>The output is masked</strong>, then returned with the exit status (or the signal, or <code>timed_out</code>), the truncation flags, the duration and the count of masked values by kind. The request goes to the audit.</p></li>
   </ol>
-  <p class="prose">The first request of each SSH session, and the first after the policy changed, also waits for a connect ticket. The first one of each console run is always yours.</p>
+  <p class="prose">The first request of each SSH login (the console’s connection, a reconnection), and the first after the policy changed, also waits for a connect ticket. With the default <code>connect = "ask"</code>, the first one of each console run is always yours.</p>
 </section>
 
 <section aria-labelledby="rules">
   <h2 id="rules">Allow rules</h2>
   <div class="prose">
     <p>An allow rule is an argv pattern, its tokens separated by spaces. The first token, the program, is always literal, and never a shell builtin or keyword. A token is an exact argument, a glob for one argument (<code>*</code> and <code>?</code> never match <code>/</code>), or a last <code>**</code> for the remaining arguments.</p>
-    <p>A glob never matches an argument that starts with <code>-</code> or <code>+</code> (unless the glob itself starts so), and never covers a <code>.</code> or <code>..</code> segment.</p>
+    <p>A glob never matches an argument that starts with <code>-</code> or <code>+</code> (unless the glob itself starts so, or follows a literal <code>--</code>; the policy review warns on both), and never covers a <code>.</code> or <code>..</code> segment.</p>
   </div>
   <div class="table-wrap" role="region" aria-label="Allow rule examples" tabindex="0">
   <table>
@@ -133,7 +133,7 @@
   <tr><td>no rule matches, <code>exec = false</code></td><td>refused, <code>E_NOT_ALLOWED</code>; nothing runs</td><td>none</td></tr>
   <tr><td>no rule matches, <code>exec = true</code></td><td>a ticket you decide (risk <code>write</code>, <code>prod-write</code> on production)</td><td><code>exec</code> (<code>ask</code>); never <code>auto</code> on production</td></tr>
   <tr><td>the output in clear (<code>unmask</code>)</td><td>only once you switched it on in the console; then a ticket</td><td><code>unmask</code> (<code>ask</code>); never decided by an auto rule</td></tr>
-  <tr><td>the SSH session’s first use</td><td>a connect ticket; the first of each console run is yours</td><td><code>connect</code> (<code>ask</code>)</td></tr>
+  <tr><td>the SSH session’s first use</td><td>a connect ticket; the first of each console run is yours under the default <code>ask</code></td><td><code>connect</code> (<code>ask</code>)</td></tr>
   </tbody>
   </table>
   </div>
@@ -212,7 +212,7 @@ lockssh run --ticket T -- systemctl restart nginx</code></pre>
       <li><code>:unmask</code>: switch clear output on, so the agent may ask for it on a ticket.</li>
       <li><code>:quit</code>: stop the console.</li>
     </ul>
-    <p>The console serves until logout, <code>:quit</code>, the idle timeout (20 minutes by default) or the maximum session (4 hours).</p>
+    <p>The console serves until logout, <code>:quit</code>, the idle timeout (20 minutes by default) or the maximum session (4 hours by default).</p>
   </div>
 </section>
 

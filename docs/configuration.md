@@ -60,13 +60,22 @@ known_hosts = "/etc/lockfamily/known_hosts"
 limits      = { max_session = "2h" }
 
 [lockssh.profiles.prod-web]
-host        = "web1.corp.example"
-user        = "ops"
-key         = "/etc/lockfamily/lockssh/id_ed25519"
-known_hosts = "/etc/lockfamily/known_hosts"
-production  = true
-allow       = ["uptime", "systemctl status *"]
+host            = "web1.corp.example"
+user            = "ops"
+key             = "/etc/lockfamily/lockssh/id_ed25519"
+known_hosts     = "/etc/lockfamily/known_hosts"
+production      = true
+credentials     = "vault"
+vault_path      = "secret/data/lockssh/prod-web"
+credentials_ttl = "1h"
+allow           = ["uptime", "systemctl status *"]
+auto            = { unmask = "deny" }
 ```
+
+A managed profile must sit within the bounds itself: `vault.required`
+needs its `credentials = "vault"`, the `credentials_ttl` bound a TTL, and
+an action left at its default counts against an `auto` ceiling (an unset
+`unmask` is `ask`, looser than `deny`).
 
 ### Bounds
 

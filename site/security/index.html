@@ -58,7 +58,7 @@
 <h1>Security model</h1>
 <div class="prose">
   <p class="lead">The promise is narrow: the agent never holds the SSH key or password, never opens an SSH connection, and runs only what you allowed, with the output masked before it leaves the console.</p>
-  <p>You approve the policy and decide every ticket in <code>lox run</code>, outside the agent. The console runs in an account and a container the agent cannot read or drive.</p>
+  <p>You approve the policy and decide every ticket your auto rules leave to you in <code>lox run</code>, outside the agent. The console runs in an account and a container the agent cannot read or drive.</p>
   <p>Skills, rules and MCP tool descriptions only guide the agent; the console’s checks are the guarantee. This page summarises the <a href="https://github.com/DavidGodefroid/lockssh/blob/main/docs/security-model.md">full security model</a>.</p>
 </div>
 
@@ -71,7 +71,7 @@
   <tbody>
   <tr><td>You</td><td>the console’s terminal, lockhub (<code>lox run</code>)</td><td>approve the policy and its loosenings, decide tickets, trust a host key, unmask</td></tr>
   <tr><td>The console (<code>lockssh</code> account, own container)</td><td>the key or password, the SSH connection, the approved policy, the audit log</td><td>run an argv on the host, mask its output</td></tr>
-  <tr><td>The agent (<code>lockssh-clients</code>, or an <code>--allowed-uids</code> uid)</td><td>a socket in a read-only volume</td><td>ask the console; propose a policy change</td></tr>
+  <tr><td>The agent (<code>lockssh-clients</code>, or an <code>--allowed-uids</code> uid), run confined</td><td>a socket in a read-only volume</td><td>ask the console; propose a policy change</td></tr>
   <tr><td>The server</td><td>the SSH account’s rights</td><td>run what it is sent</td></tr>
   </tbody>
   </table>
@@ -86,14 +86,15 @@
   <caption>Guarantees and what enforces them</caption>
   <thead><tr><th scope="col">Guarantee</th><th scope="col">Enforced by</th></tr></thead>
   <tbody>
-  <tr><td>The key never reaches the agent</td><td>it lives in the console account’s home volume (mode 0600, refused otherwise); a passphrase or password is asked by the console or read from Vault, and wiped after use; nothing the agent reads (the socket volume, the project, a result, an error, the audit log) carries it, and errors are scrubbed</td></tr>
-  <tr><td>No shell syntax from the agent</td><td>an argv, never a command string; every argument quoted in POSIX single quotes and the line run through <code>exec</code>, so argv[0] is always a program on the host’s <code>PATH</code>, never a builtin, keyword, alias or function; control and invisible characters refused</td></tr>
-  <tr><td>Only allowed commands run unasked</td><td>the approved allow rules; anything else is refused, or on <code>exec = true</code> waits for a signed ticket bound to the argv, the agent and the policy fingerprint, and runs once</td></tr>
+  <tr><td>The key never reaches the agent</td><td>it lives in the console account’s home volume (no group or other permission bits, refused otherwise); a passphrase or password is asked by the console or read from Vault; a key passphrase is wiped after use, an SSH password too but for the string copy the SSH library needs; nothing the agent reads (the socket volume, the project, a result, an error, the audit log) carries it, and errors are scrubbed</td></tr>
+  <tr><td>No shell syntax from the agent</td><td>an argv, never a command string; every argument quoted in POSIX single quotes and the line run through <code>exec</code>, so argv[0] is always a program (looked up on the host’s <code>PATH</code> unless it holds a <code>/</code>), never a builtin, keyword, alias or function; control and invisible characters refused</td></tr>
+  <tr><td>Only allowed commands run unasked</td><td>the approved allow rules; anything else is refused, or on <code>exec = true</code> waits for a signed ticket bound to the argv, the agent and the policy fingerprint, and runs once; you decide it, or <code>lox run</code> does when a non-production profile sets <code>auto.exec = "auto"</code> (refused on production)</td></tr>
+  <tr><td>Confined agents only</td><td>the console serves only an agent that reports running confined (in a container, no host container runtime socket, no Lock Family state); the report is the client’s own, sent in its handshake; a non-production profile with <code>unconfined = true</code> serves one anyway (a loosening you approve, a red banner, audited); a production profile with it does not start</td></tr>
   <tr><td>The policy is yours</td><td>the approved policy is the one in force; a loosening of <code>.lockssh/config.toml</code> waits for your <code>:review</code>; the agent can only queue a change request</td></tr>
   <tr><td>Bounded runs</td><td>one SSH session per command, with no PTY, no stdin, no port, agent or X11 forwarding and no subsystem; a timeout (then SIGKILL) and an output cap per stream</td></tr>
-  <tr><td>Masked output</td><td>every byte of stdout and stderr goes through lockkit’s detectors before it leaves the console; clear output needs your switch in the console and a decided ticket, never an auto rule</td></tr>
+  <tr><td>Masked output</td><td>every byte of stdout and stderr goes through lockkit’s detectors before it leaves the console; clear output needs your switch in the console and a decided ticket, never an auto rule, except the values a PII allow rule of the approved policy names (never a secret)</td></tr>
   <tr><td>Pinned host keys</td><td>an unknown key is trusted only by you, on the console; with a <code>known_hosts</code> file the profile names, it is refused; a changed key is always refused</td></tr>
-  <tr><td>Audit</td><td>every request, refusal, decision and run in an append-only, hash-chained log, with the command masked, never the output</td></tr>
+  <tr><td>Audit</td><td>every run, refusal of a run and decision in an append-only, hash-chained log, never the output (a dry run is not logged); the command is masked with a fixed set (secret, email, phone, IBAN, card), so an IP address or a custom-masked value in an argument is logged in clear</td></tr>
   </tbody>
   </table>
   </div>
@@ -103,7 +104,7 @@
   <h2 id="injection">No shell, no climbing, no options</h2>
   <div class="prose">
     <p>The remote line is <code>exec</code> followed by the quoted argv: <code>exec 'systemctl' 'status' 'nginx'</code>. Nothing after it in the line can run, and an argv[0] that starts with <code>-</code> or <code>+</code> is refused.</p>
-    <p>In an allow rule, a glob never matches an argument that starts with <code>-</code> or <code>+</code>, so it cannot choose an option you never wrote: <code>git log *</code> does not allow <code>git log --output=/home/u/.bashrc</code>. A glob never covers a <code>.</code> or <code>..</code> segment, so <code>cat /var/log/*</code> does not reach <code>/etc/shadow</code>.</p>
+    <p>In an allow rule, a glob never matches an argument that starts with <code>-</code> or <code>+</code>, unless the glob itself starts with that character (<code>-*</code>, <code>+%*</code>) or follows a literal <code>--</code>; the policy review warns on both. So it cannot choose an option you never wrote: <code>git log *</code> does not allow <code>git log --output=/home/u/.bashrc</code>. A glob never covers a <code>.</code> or <code>..</code> segment, so <code>cat /var/log/*</code> does not reach <code>/etc/shadow</code>.</p>
     <p>The SSH account’s login shell must be a POSIX shell (sh, dash, bash, ksh, zsh): another one may read the quoted arguments differently.</p>
   </div>
 </section>
@@ -129,8 +130,8 @@
 <section aria-labelledby="docker">
   <h2 id="docker">What Docker does and does not separate</h2>
   <div class="prose">
-    <p>The agent’s container holds no key, has no SSH connection and reaches the console only through the socket. A process that is neither the console account nor in <code>lockssh-clients</code> (nor an allowed uid) is refused.</p>
-    <p>Your own account is another matter: whoever can run <code>docker</code> commands can attach to the console, exec into it or open its home volume. An agent that runs shell commands as you usually can. For that boundary, run the agent in a container of its own without the Docker socket, as <a href="https://github.com/DavidGodefroid/lea">lea</a> does. <a href="https://github.com/DavidGodefroid/lockssh/blob/main/docs/docker.md#what-docker-does-and-does-not-separate">Details</a>.</p>
+    <p>The agent’s container holds no key, has no SSH connection and reaches the console only through the socket. A process that is neither the console account nor in <code>lockssh-clients</code> (nor an allowed uid) is refused, and so is an agent that does not report running confined.</p>
+    <p>Your own account is another matter: whoever can run <code>docker</code> commands can attach to the console, exec into it or open its home volume. An agent that runs shell commands as you usually can. The console refuses an agent that does not report running confined (in a container of its own without the Docker socket, as <a href="https://github.com/DavidGodefroid/lea">lea</a> runs it), but the report is the client’s own: a process of your account can lie in it. <a href="https://github.com/DavidGodefroid/lockssh/blob/main/docs/docker.md#what-docker-does-and-does-not-separate">Details</a>.</p>
   </div>
 </section>
 

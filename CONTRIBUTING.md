@@ -96,7 +96,8 @@ Participation is governed by the [code of conduct](CODE_OF_CONDUCT.md).
 Releases are built by GoReleaser (`.goreleaser.yaml`) when a `v*` tag is
 pushed: `.github/workflows/release.yml` runs the unit tests, then builds
 linux and darwin on amd64 and arm64, signs `checksums.txt` with cosign
-(keyless), attaches an SBOM per archive and the Linux packages. A tag
+(keyless) and attaches an SBOM per archive (no Linux packages: lockssh
+runs in Docker). A tag
 with a semver pre-release suffix (`v0.3.0-rc.1`) is published as a GitHub
 pre-release; any other tag (`v0.3.0`) is a full release, marked Latest
 (GoReleaser's `prerelease: auto`). To check the configuration locally

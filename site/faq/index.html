@@ -64,7 +64,7 @@
 </section>
 <section aria-labelledby="agents">
   <h2 id="agents">Which AI agents does it work with?</h2>
-  <p>Any MCP client. <code>lockssh init</code> wires Claude Code, Codex, Cursor and Gemini CLI. An agent talks to the console through the MCP server (<code>lockssh mcp</code>, five tools) or the <code>lockssh</code> CLI; every client command takes <code>--json</code>.</p>
+  <p>Any MCP client, run confined (in a container, as lea runs agents): the console refuses an agent that does not report running confined, unless a non-production profile sets <code>unconfined = true</code>. <code>lockssh init</code> wires Claude Code, Codex, Cursor and Gemini CLI. An agent talks to the console through the MCP server (<code>lockssh mcp</code>, five tools) or the <code>lockssh</code> CLI; every client command takes <code>--json</code>.</p>
 </section>
 <section aria-labelledby="which-commands">
   <h2 id="which-commands">Which commands run without asking me?</h2>
@@ -76,7 +76,7 @@
 </section>
 <section aria-labelledby="injection">
   <h2 id="injection">Can the agent slip a second command into the arguments?</h2>
-  <p>No. The agent sends an argv, and the console quotes every argument: <code>;</code>, <code>|</code>, <code>&amp;&amp;</code>, <code>$(...)</code> and backquotes reach the program as plain text. Globs in allow rules never match an option or a <code>..</code> segment. <a href="../security/#injection">No shell, no climbing, no options</a>.</p>
+  <p>No. The agent sends an argv, and the console quotes every argument: <code>;</code>, <code>|</code>, <code>&amp;&amp;</code>, <code>$(...)</code> and backquotes reach the program as plain text. Globs in allow rules never match an option you did not write or a <code>..</code> segment. <a href="../security/#injection">No shell, no climbing, no options</a>.</p>
 </section>
 <section aria-labelledby="dangerous">
   <h2 id="dangerous">Is every allow rule safe?</h2>
@@ -88,7 +88,7 @@
 </section>
 <section aria-labelledby="masked">
   <h2 id="masked">What is masked, and what is not?</h2>
-  <p>Cards, emails, IBANs, public IP addresses, phone numbers and secrets become keyed pseudonyms, stable for one console run. Person names, postal addresses and free text are not: prefer commands whose output you know. <a href="../security/#not-masked">What is not masked</a>.</p>
+  <p>Cards, emails, IBANs, public IP addresses and phone numbers become keyed pseudonyms, stable for one console run; secrets become <code>⟦secret⟧</code>. Person names, postal addresses and free text are not: prefer commands whose output you know. <a href="../security/#not-masked">What is not masked</a>.</p>
 </section>
 <section aria-labelledby="host-keys">
   <h2 id="host-keys">How are host keys checked?</h2>
@@ -112,7 +112,7 @@
 </section>
 <section aria-labelledby="install-now">
   <h2 id="install-now">Can I install it today?</h2>
-  <p>v0.3.0 is released, and its launcher installs with <code>install.sh</code>. The console runs under <code>lox run</code> only, which takes lockhub’s <code>lox</code> v0.11.0 or later. It installs with Homebrew too: <code>brew install davidgodefroid/tap/lockfamily</code> installs it with <code>lox</code>. <a href="../install/#status">Where things stand</a>.</p>
+  <p>v0.3.0 is released, and its launcher installs with <code>install.sh</code>. The console runs under <code>lox run</code> only, which takes lockhub’s <code>lox</code> v0.12.0 or later. It installs with Homebrew too: <code>brew install davidgodefroid/tap/lockfamily</code> installs it with <code>lox</code>. <a href="../install/#status">Where things stand</a>.</p>
 </section>
 <section aria-labelledby="family">
   <h2 id="family">How does it relate to the other Locks?</h2>
