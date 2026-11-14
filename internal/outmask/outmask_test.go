@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/DavidGodefroid/lockkit/pii"
+	"github.com/DavidGodefroid/lockssh/internal/config"
 )
 
 func TestMask(t *testing.T) {
@@ -39,5 +40,34 @@ func TestMask(t *testing.T) {
 	}
 	if r := m.Mask("nothing here"); r.Text != "nothing here" || r.Kinds != nil {
 		t.Errorf("clean: %+v", r)
+	}
+}
+
+// A flag secret only through "auth" keeps an auth method name, and a stop
+// word after a secret flag stays in clear (lockkit v0.19.2, lockkit#198):
+// initdb's hint reads as written; real secrets are still masked.
+func TestMaskAuthFlags(t *testing.T) {
+	ds, err := pii.Detectors(config.DefaultDetectors())
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := New(ds, nil)
+	for _, in := range []string{
+		"initdb: hint: You can change this by editing pg_hba.conf or using the option -A, or --auth-local and --auth-host, the next time you run initdb.",
+		"initdb -D /var/lib/postgresql/data --auth-local peer --auth-host scram-sha-256",
+		"usage: tool [--password or --token]",
+	} {
+		if r := m.Mask(in); r.Text != in || r.Kinds != nil {
+			t.Errorf("over-masked:\n in  %q\n out %q", in, r.Text)
+		}
+	}
+	for _, in := range []string{
+		"curl --auth admin:pw https://h/",
+		"tool --auth s3cr3tT0ken",
+		"psql --password hunter2",
+	} {
+		if r := m.Mask(in); r.Kinds["secret"] != 1 {
+			t.Errorf("secret in clear: %q -> %q", in, r.Text)
+		}
 	}
 }
