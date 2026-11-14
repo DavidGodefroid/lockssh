@@ -70,15 +70,15 @@ every lockssh client reports it in its handshake (in a container, no host
 container runtime socket it can reach, no Lock Family state, the project's
 `.lockfamily/` read-only), and an agent that does not, or that holds the
 group of the host's Docker socket, is refused with the reasons
-(`CodeUnconfined`, audited `refused-unconfined`). Agents run by lea are
+(JSON-RPC error `-32009`, audited `refused-unconfined`). Agents run by lea are
 confined; an agent run on the host is not. `unconfined = true` on a
 non-production profile serves it anyway: turning it on is a loosening the
 human approves, the console shows a red banner, and every audit record and
 hub ticket of the connection is marked unconfined. A production profile
 with `unconfined = true` does not start, and a managed
 `require_confined_agent = true` refuses an unconfined agent whatever the
-profile says. The client and the console must be of the same lockssh
-version.
+profile says. The client and the console must speak the same console
+protocol major (`protocol_major` in `lockssh version --json`).
 
 **Policy.** Every security-relevant field is part of the profile's policy.
 The console shows it at its first start and asks the human to approve it;
@@ -155,8 +155,8 @@ most 16 KiB in all, with no control or invisible character but tab.
 |---|---|
 | an allow rule matches | runs at once (rule `run = "auto"`, the default); with `run = "ask"`, a ticket |
 | no rule matches, `exec = false` | refused, `E_NOT_ALLOWED`; nothing runs |
-| no rule matches, `exec = true` | a ticket (risk `write`, `prod-write` on production), decided by the human |
-| `unmask` (output in clear) | only once the human allowed it in the console (`:unmask` or `--allow-unmask`); then a ticket (risk `read-pii`), never decided by an auto rule |
+| no rule matches, `exec = true` | a ticket (risk `write`, `prod-write` on production), decided by the human, or by `lox run` when the profile sets `auto.exec = "auto"` (refused on production) |
+| `unmask` (output in clear) | only once the human allowed it in the console (`:unmask` or `--allow-unmask`); then a ticket (risk `read-pii` for an allow-listed command; a command outside the allow list keeps `write`/`prod-write`), never decided by an auto rule |
 
 On a production profile, `auto.exec = "auto"` (and `auto = "full-auto"`)
 is refused when the policy loads: a command outside the allow list is a
@@ -237,7 +237,9 @@ the ticket `never_auto`. `lockssh profile rules --json` prints the rules
 `lox run` starts the console (`lox add lockssh` declares it), from lockhub
 v0.11.0 or later, the first with the lockssh lock type
 ([lockhub#133](https://github.com/DavidGodefroid/lockhub/issues/133)); an older
-`lox` starts none. `lox run` launches `lockssh console --hub URL --hub-key-file FILE
+`lox` starts none. lockssh v0.3.0 takes v0.12.0 or later, the first that
+passes it `--runtime-gids` and shows its unconfined row, banner and ticket
+flag. `lox run` launches `lockssh console --hub URL --hub-key-file FILE
 --instance NAME [--profile P] [--project DIR] [--allow-unmask]
 [--show-results] [--allowed-uids UID,...]`. It refuses to start without its
 hub. At its start it shows the policy for approval, asks the secret, logs
@@ -253,7 +255,7 @@ output.
 
 | CLI | MCP tool | |
 |---|---|---|
-| `lockssh status` | `lockssh_status` | the console of each profile, its allow rules, exec, the SSH account |
+| `lockssh status` | `lockssh_status` | the profile's console (the MCP tool: each profile's), its allow rules, exec, the SSH account |
 | `lockssh run [--intent T] [--dry-run] [--ticket T] [--unmask] [--] PROGRAM [ARG]...` | `lockssh_run` (`argv`, `intent`, `dry_run`, `ticket`, `unmask`) | run a command; flags come before the program |
 | `lockssh pii list` | `lockssh_pii_list` | the PII mask and allow rules in force |
 | `lockssh pii add "REGEXP"` | `lockssh_pii_add` (`pattern`) | add a mask rule: masks more, applied at once |
@@ -270,9 +272,9 @@ denied or failed, 2 no console, 3 usage or configuration error.
 What `lox add` calls (the lockkit verbs contract):
 
 ```
-lockssh profile add --non-interactive --json --profile NAME [--production] [--credentials none|ask|vault --vault-path P]
-                    --host HOST [--port N] --user USER [--auth key|password] [--key FILE] [--known-hosts FILE]
-                    [--allow "RULE"]... [--exec]
+lockssh profile add [--non-interactive] [--json] [--project DIR] [--profile NAME] [--production]
+                    [--credentials none|ask|vault [--vault-path P]] --host HOST [--port N] --user USER
+                    [--auth key|password] [--key FILE] [--known-hosts FILE] [--allow "RULE"]... [--exec]
 lockssh init claude
 lockssh doctor --fix --yes --json
 ```
@@ -297,3 +299,4 @@ wiring.
 | `E_UNMASK_OFF` | clear output is off in this console | work with the masked output, or ask the user |
 | `E_STALE` | the profile changed after the approval | ask again |
 | `E_POLICY` | no policy in force, or it does not parse | ask the user |
+| `-32009` (handshake) | the agent does not run confined and the profile does not accept it; the reasons are in the message | run the agent confined (as lea does), or ask the user |

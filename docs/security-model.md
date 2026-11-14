@@ -11,7 +11,7 @@ before it leaves the console.**
 |---|---|---|
 | The human | the console's terminal, lockhub (`lox run`) | approve the policy and its loosenings, decide tickets, trust a host key, unmask |
 | The console (`lockssh` account, own container) | the key or password, the SSH connection, the approved policy, the audit log | run an argv on the host, mask its output |
-| The agent (`lockssh-clients`, or an `--allowed-uids` uid) | a socket in a read-only volume | ask the console; propose a policy change |
+| The agent (`lockssh-clients`, or an `--allowed-uids` uid), run confined | a socket in a read-only volume | ask the console; propose a policy change |
 | The server | the SSH account's rights | run what it is sent |
 
 The boundary between the agent and the console is the operating system's:
@@ -22,9 +22,10 @@ console framework holds it; lockssh adds the SSH side.
 ## What lockssh enforces
 
 - **The key never reaches the agent.** It lives in the console account's
-  home volume (mode 0600, refused otherwise), and a passphrase or password
-  is asked by the console, read from the keychain or from Vault, wiped after
-  use. Nothing the agent can read (the socket volume, the project, a
+  home volume (no group or other permission bits, refused otherwise), and a
+  passphrase or password is asked by the console, read from the keychain or
+  from Vault. A key passphrase is wiped after use; an SSH password is too,
+  except the string copy the SSH library needs. Nothing the agent can read (the socket volume, the project, a
   result, an error, the audit log) carries it; errors are scrubbed.
 - **No shell syntax from the agent.** The agent sends an argv; the console
   quotes every argument in POSIX single quotes. The server's login shell
@@ -33,8 +34,18 @@ console framework holds it; lockssh adds the SSH side.
 - **Only allowed commands run unasked.** A command runs at once only when an
   allow rule of the approved policy matches it (and its auto rule is
   `auto`). Anything else is refused, or, on a profile with `exec = true`,
-  waits for a human's decision on a signed ticket bound to the argv, the
-  agent, and the policy fingerprint; it runs once.
+  waits for a decision on a signed ticket bound to the argv, the agent, and
+  the policy fingerprint; it runs once. The decision is the human's, or
+  `lox run`'s when a non-production profile sets `auto.exec = "auto"`
+  (refused on production).
+- **Confined agents only.** The console serves only an agent that reports
+  running confined (in a container, no host container runtime socket, no
+  Lock Family state, the project's `.lockfamily/` read-only); any other is
+  refused (`refused-unconfined` in the audit). The report is the client's
+  own self-check, sent in its handshake. A non-production profile may set
+  `unconfined = true` to serve such an agent anyway: a loosening the human
+  approves, shown with a red banner and marked in every audit record and
+  ticket. A production profile with it does not start.
 - **The policy is the human's.** The approved policy is the one in force; an
   agent that edits `.lockssh/config.toml` loosens nothing until the human
   approves the diff in the console.
@@ -43,11 +54,18 @@ console framework holds it; lockssh adds the SSH side.
 - **Masked output.** Every byte of stdout and stderr goes through lockkit's
   detectors before it leaves the console; values become keyed pseudonyms,
   secrets `⟦secret⟧`. Clear output needs the human's switch in the console
-  and a decided ticket, never an auto rule.
+  and a decided ticket, never an auto rule, except the values a PII allow
+  rule of the approved policy (`.lockssh/pii.toml`) names: those stay in
+  clear in every output. A secret is never allowed in clear.
 - **Host keys.** Unknown keys are trusted only by the human on the
   console; changed keys are refused.
-- **Audit.** Every request, refusal, decision and run is in an append-only,
-  hash-chained log, with the command masked, never the output.
+- **Audit.** Every run, refusal of a run and decision is in an append-only,
+  hash-chained log, never the output; a dry run (`dry_run`, `--dry-run`)
+  is not logged. The command is masked with a fixed detector set (secret,
+  email, phone, IBAN, card), not with the profile's detectors nor the
+  `pii.toml` mask rules: an IP address or a custom-masked value typed in
+  an argument is logged, and shown on the hub's screens, in clear
+  ([#40](https://github.com/DavidGodefroid/lockssh/issues/40)).
 
 ## What lockssh does not do
 
@@ -58,9 +76,11 @@ console framework holds it; lockssh adds the SSH side.
   such programs only with literal arguments, never with `*` or `**`.
   [decisions.md](decisions.md#programs-that-run-code-from-their-arguments)
   lists them, and the policy review warns on such a rule; the list is a
-  safety net, not a complete one. Globs never match an option (`-`, `+`)
-  nor a `.`/`..` segment, so a glob cannot choose an option the human
-  never wrote or climb out of a directory.
+  safety net, not a complete one. A glob never matches an option (`-`,
+  `+`) unless the glob itself starts with that character (`-*`,
+  `--since=*`) or follows a literal `--` in the rule; the policy review
+  warns on both ([#41](https://github.com/DavidGodefroid/lockssh/issues/41)). A glob never matches a `.`/`..` segment, so it cannot
+  climb out of a directory.
 - **It does not resolve paths on the host.** A rule's path is text: a
   symlink under an allowed directory reads wherever it points.
 - **It does not confine the SSH account.** What a command can do is what
@@ -74,9 +94,10 @@ console framework holds it; lockssh adds the SSH side.
 - **It does not prevent exfiltration by an allowed command.** An allowed
   command that sends data elsewhere (`curl`, a mail command) does so.
 - **It does not separate you from your own account.** Whoever runs
-  `docker` commands as you can attach to the console or read its volume;
-  run the agent in a container of its own without the Docker socket (lea)
-  for that boundary.
+  `docker` commands as you can attach to the console or read its volume.
+  The console refuses an agent that does not report running confined
+  (above), but the report is the client's own: a process of your account
+  can lie in it.
 
 ## Why it is built this way
 

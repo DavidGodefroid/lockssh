@@ -63,8 +63,8 @@
 <section aria-labelledby="status">
   <h2 id="status">Where things stand</h2>
   <div class="prose">
-    <p>lockssh v0.3.0 is the latest release. <code>lox add lockssh</code> and <code>lox run</code> serving it ship in lockhub v0.11.0 (<a href="https://github.com/DavidGodefroid/lockhub/issues/133">lockhub#133</a>); an older <code>lox</code> does not know lockssh and cannot start its console. <code>lox add lockssh</code> pins lockssh v0.2.0.</p>
-    <p>lockssh has a Homebrew formula, on Linux and macOS. The <code>lockfamily</code> meta formula installs the whole family, lockssh and lockhub’s <code>lox</code> v0.11.0 included; or install lockssh by name.</p>
+    <p>lockssh v0.3.0 is the latest release. <code>lox add lockssh</code> and <code>lox run</code> serving it ship in lockhub v0.11.0 (<a href="https://github.com/DavidGodefroid/lockhub/issues/133">lockhub#133</a>), and lockssh v0.3.0’s confined agents in v0.12.0; an older <code>lox</code> does not know lockssh and cannot start its console. <code>lox add lockssh</code> pins the latest signed lockssh release.</p>
+    <p>lockssh has a Homebrew formula, on Linux and macOS. The <code>lockfamily</code> meta formula installs the whole family, lockssh and lockhub’s <code>lox</code> included; or install lockssh by name.</p>
   </div>
   <div class="install">
     <div class="install-head"><span>lockssh, with Homebrew</span></div>
@@ -101,7 +101,7 @@ lockssh update [vX.Y.Z]     <span class="cmt"># a new launcher, then docker pull
 
 <section aria-labelledby="quick-start">
   <h2 id="quick-start">Set up a project</h2>
-  <p class="prose">In your project, with lockhub’s <code>lox</code> v0.11.0 or later:</p>
+  <p class="prose">In your project, with lockhub’s <code>lox</code> v0.12.0 or later:</p>
   <pre tabindex="0" class="term"><code>lox init           <span class="cmt"># a lockfamily.yaml with the hub alone (once)</span>
 lox add lockssh    <span class="cmt"># host, port, login, key file, allow rules; never a secret</span>
 lox run            <span class="cmt"># in a terminal of its own: starts the console, serves the decisions</span></code></pre>
@@ -143,7 +143,7 @@ max_output_bytes = 65536           <span class="cmt"># per stream, before maskin
   <pre tabindex="0" class="term"><code>lockssh init codex          <span class="cmt"># or claude, cursor, gemini; this project</span>
 lockssh doctor --fix        <span class="cmt"># the config, the consoles, .lockssh, the agent wiring</span></code></pre>
   <div class="prose">
-    <p><code>lockssh init</code> writes the MCP command, <code>lockssh mcp</code>, which runs through the launcher in a throwaway container. Any MCP client works; <code>init</code> wires Claude Code, Codex, Cursor and Gemini CLI.</p>
+    <p><code>lockssh init</code> writes the MCP command, <code>lockssh mcp</code>, which runs through the launcher in a throwaway container. Any MCP client works, run confined (as lea runs agents); <code>init</code> wires Claude Code, Codex, Cursor and Gemini CLI.</p>
     <p>Keep the client’s tool timeouts: the console waits up to 5 minutes for an approval. Start the agent at the project root, or below it.</p>
   </div>
 </section>

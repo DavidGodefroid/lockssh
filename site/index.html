@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>lockssh: your agent runs the command, you hold the key</title>
-  <meta name="description" content="lockssh lets any AI agent run commands on your servers over SSH without ever holding the key. Allow-listed commands run at once, the rest waits for you, and the output comes back masked.">
+  <meta name="description" content="lockssh lets any confined AI agent run commands on your servers over SSH without ever holding the key. Allow-listed commands run at once, the rest waits for you, and the output comes back masked.">
   <meta name="color-scheme" content="light dark">
   <meta name="theme-color" content="#f4efe4" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#16140f" media="(prefers-color-scheme: dark)">
@@ -12,7 +12,7 @@
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="lockssh">
   <meta property="og:title" content="lockssh: your agent runs the command, you hold the key">
-  <meta property="og:description" content="lockssh lets any AI agent run commands on your servers over SSH without ever holding the key. Allow-listed commands run at once, the rest waits for you, and the output comes back masked.">
+  <meta property="og:description" content="lockssh lets any confined AI agent run commands on your servers over SSH without ever holding the key. Allow-listed commands run at once, the rest waits for you, and the output comes back masked.">
   <meta property="og:url" content="https://davidgodefroid.github.io/lockssh/">
   <meta property="og:image" content="https://davidgodefroid.github.io/lockssh/assets/og.png">
   <meta property="og:image:type" content="image/png">
@@ -22,7 +22,7 @@
   <meta property="og:locale" content="en_US">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="lockssh: your agent runs the command, you hold the key">
-  <meta name="twitter:description" content="lockssh lets any AI agent run commands on your servers over SSH without ever holding the key. Allow-listed commands run at once, the rest waits for you, and the output comes back masked.">
+  <meta name="twitter:description" content="lockssh lets any confined AI agent run commands on your servers over SSH without ever holding the key. Allow-listed commands run at once, the rest waits for you, and the output comes back masked.">
   <meta name="twitter:image" content="https://davidgodefroid.github.io/lockssh/assets/og.png">
   <meta name="twitter:image:alt" content="lockssh: your agent runs the command, you hold the key.">
   <link rel="icon" href="assets/logo.svg" type="image/svg+xml">
@@ -56,15 +56,15 @@
 
 <section class="hero" aria-labelledby="hero-title">
   <div class="hero-text">
-    <p class="eyebrow"><span class="badge">v0.2</span>A Lock of the Lock&nbsp;Family · open&nbsp;source · Apache&nbsp;2.0</p>
+    <p class="eyebrow"><span class="badge">v0.3</span>A Lock of the Lock&nbsp;Family · open&nbsp;source · Apache&nbsp;2.0</p>
     <h1 id="hero-title">Your agent runs the command. <span class="key">You hold the key.</span></h1>
-    <p class="lead">Any AI agent can run commands on your servers over SSH without ever holding the key. Allow-listed commands run at once, the rest waits for you, and the output comes back masked.</p>
+    <p class="lead">Any AI agent, run confined, can run commands on your servers over SSH without ever holding the key. Allow-listed commands run at once, the rest waits for you, and the output comes back masked.</p>
     <div class="install">
       <div class="install-head"><span>Set it up in your project</span></div>
       <pre tabindex="0" aria-label="Set-up commands"><code><span class="cmd">lox init</span>
 <span class="cmd">lox add lockssh</span>
 <span class="cmd">lox run</span></code></pre>
-      <p class="install-note">lockssh takes lockhub’s <code>lox</code> v0.11.0 or later: an older one does not know it. Docker on Linux or macOS; <code>brew install davidgodefroid/tap/lockfamily</code> installs both, or the launcher of the <a href="install/">install guide</a>.</p>
+      <p class="install-note">lockssh v0.3 takes lockhub’s <code>lox</code> v0.12.0 or later: an older one does not know it or its confined agents. Docker on Linux or macOS; <code>brew install davidgodefroid/tap/lockfamily</code> installs both, or the launcher of the <a href="install/">install guide</a>.</p>
     </div>
     <div class="actions">
       <a class="button primary" href="install/">Install guide</a>
@@ -150,7 +150,7 @@
     <li><span class="icon" aria-hidden="true">🔑</span><h3>One key holder</h3><p>The key or password lives in the console’s account (mode 0600). A passphrase is asked at start or read from Vault. Never in the agent’s account, a result, an error or the audit.</p></li>
     <li><span class="icon" aria-hidden="true">✅</span><h3>Allow rules, no prompt</h3><p><code>systemctl status *</code>, <code>journalctl -u * -n * --no-pager</code>: a command an approved rule matches runs at once. The program is always literal.</p></li>
     <li><span class="icon" aria-hidden="true">👤</span><h3>The rest, approved</h3><p>Anything else is refused or, with <code>exec = true</code>, becomes a signed ticket you decide in <code>lox run</code>. It runs once, for that agent, that argv, that policy.</p></li>
-    <li><span class="icon" aria-hidden="true">🚫</span><h3>No shell</h3><p>Every argument is quoted: <code>;</code>, <code>|</code>, <code>$(...)</code> stay literal. Globs never match an option or climb out with <code>..</code>.</p></li>
+    <li><span class="icon" aria-hidden="true">🚫</span><h3>No shell</h3><p>Every argument is quoted: <code>;</code>, <code>|</code>, <code>$(...)</code> stay literal. Globs never match an option you did not write or climb out with <code>..</code>.</p></li>
     <li><span class="icon" aria-hidden="true">🫥</span><h3>Masked output</h3><p>stdout and stderr are capped, then masked: emails, public IPs, cards, IBANs, phones, secrets. Clear output needs your switch and a ticket.</p></li>
     <li><span class="icon" aria-hidden="true">📌</span><h3>Pinned host keys</h3><p>A host key the console has never seen is trusted only on your answer; a changed key is always refused.</p></li>
     <li><span class="icon" aria-hidden="true">⏱️</span><h3>Bounded runs</h3><p>One SSH session per command: no PTY, no stdin, no forwarding. A timeout (30 s by default) and an output cap per stream.</p></li>
@@ -161,7 +161,7 @@
 <section aria-labelledby="quick-start">
   <h2 id="quick-start">Quick start</h2>
   <ol class="steps prose">
-    <li><p>Install the <code>lockssh</code> launcher and lockhub’s <code>lox</code> v0.11.0 or later, or both with <code>brew install davidgodefroid/tap/lockfamily</code> (<a href="install/">install guide</a>). Docker must be running.</p></li>
+    <li><p>Install the <code>lockssh</code> launcher and lockhub’s <code>lox</code> v0.12.0 or later, or both with <code>brew install davidgodefroid/tap/lockfamily</code> (<a href="install/">install guide</a>). Docker must be running.</p></li>
     <li><p>In your project, write a <code>lockfamily.yaml</code> with the hub alone (once):</p>
       <pre tabindex="0"><code>lox init</code></pre></li>
     <li><p>Add an SSH host: host, port, login, key file in the lock’s home, allow rules. Never a secret.</p>

@@ -36,13 +36,14 @@ harness security for AI agents. Allow-listed commands run at once, the rest
 waits for you, and the SSH key never leaves the console.
 
 It works with any MCP client (Claude Code, Codex, Cursor, Gemini CLI, …) or
-through the `lockssh` CLI.
+through the `lockssh` CLI, run confined (as lea runs agents).
 
 > [!NOTE]
 > **0.x**: flags and the policy format may still change between minor versions. v0.3.0 is the latest release. `lox add lockssh` and `lox run`
 > serving it ship in lockhub v0.11.0
-> ([lockhub#133](https://github.com/DavidGodefroid/lockhub/issues/133)); an
-> older `lox` does not know lockssh.
+> ([lockhub#133](https://github.com/DavidGodefroid/lockhub/issues/133)), and
+> lockssh v0.3.0's confined agents in v0.12.0; an older `lox` does not know
+> lockssh.
 
 ## Why lockssh
 
@@ -66,7 +67,7 @@ brew install davidgodefroid/tap/lockssh
 The formula installs the `lockssh` launcher and pins the release images by
 digest, checked with cosign when the formula was bumped. Upgrade with
 `brew upgrade lockssh`, not `lockssh update`. The `lockfamily` meta formula
-installs the whole family, lockssh included, with lockhub's `lox` v0.11.0:
+installs the whole family, lockssh included, with lockhub's `lox`:
 
 ```sh
 brew install davidgodefroid/tap/lockfamily
@@ -94,9 +95,10 @@ launcher, which runs every command in the signed image
 
 ## Quick start
 
-It takes lockhub's `lox` v0.11.0 or later, the first that knows
+It takes lockhub's `lox` v0.12.0 or later: v0.11.0 is the first that knows
 the lockssh lock type
-([lockhub#133](https://github.com/DavidGodefroid/lockhub/issues/133)): the
+([lockhub#133](https://github.com/DavidGodefroid/lockhub/issues/133)), and
+v0.12.0 the first that supports lockssh v0.3.0's confined agents. The
 console runs hub-attached only, and an older `lox` cannot start it.
 
 1. In your project, write a `lockfamily.yaml` with the hub alone (once):
@@ -112,7 +114,7 @@ console runs hub-attached only, and an older `lox` cannot start it.
    lox add lockssh
    ```
 
-   It pins lockssh v0.2.0, runs `lockssh profile add`, `lockssh init claude` and `lockssh doctor`
+   It pins the latest signed lockssh release, runs `lockssh profile add`, `lockssh init claude` and `lockssh doctor`
    for you, declares the lock in `lockfamily.yaml`, offers to copy your key
    into the console's home, and shows the lock's review as it starts. Another
    agent: `lockssh init codex`, `lockssh init cursor` or `lockssh init gemini`.
@@ -154,8 +156,8 @@ the agent's account, the socket, a result, an error or the audit log.
 
 **✅ Allow rules, no prompt**<br>
 `systemctl status *`, `journalctl -u * -n * --no-pager`: a command an allow
-rule of the approved policy matches runs at once. Globs never cross `/`;
-the program is always literal.
+rule of the approved policy matches runs at once. `*` and `?` never cross
+`/`; the program is always literal.
 
 </td>
 </tr>
@@ -182,7 +184,7 @@ public IPs, cards, IBANs, phones, secrets.
 ## How it works
 
 1. `lox run` starts the console in its own container, as the `lockssh`
-   account, with an egress to the profile's host only (lockhub v0.11.0 or later,
+   account, with an egress to the profile's host only (lockhub v0.12.0 or later,
    [lockhub#133](https://github.com/DavidGodefroid/lockhub/issues/133)). It shows the profile's policy for approval, logs in over SSH
    (trusting the host key only on your answer), and checks the account.
 2. The agent's `lockssh mcp` (or CLI) runs as another account and reaches
@@ -220,7 +222,8 @@ The same value gets the same pseudonym for the whole console run, so the
 agent can still correlate; the next run draws new ones.
 
 Clear output needs your switch in the console and a decided ticket, never
-an auto rule.
+an auto rule, except the values a PII allow rule of the approved policy
+names (never a secret).
 
 ## Safety model
 

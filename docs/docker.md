@@ -51,8 +51,10 @@ lockssh update vX.Y.Z
 ```
 
 `lockssh update` checks the signatures and the checksum as `install.sh`
-does, and needs cosign the same way. With `LOCKSSH_SKIP_COSIGN=1` nothing is
-verified and the launcher runs the image by its tag.
+does, and needs cosign the same way. Without cosign, `LOCKSSH_SKIP_COSIGN=1`
+skips the signature checks (the archive checksum is still checked) and the
+launcher runs the image by its tag; with cosign installed it changes
+nothing.
 
 ### What runs where
 
@@ -63,9 +65,9 @@ runs each command with the account it needs:
 | Command | Runs as | Volumes |
 |---|---|---|
 | `console` | `lockssh`, in a container of its own per project (`lockssh-console-<n>`; `LOCKSSH_CONSOLE_NAME` names it), with `--add-host=host.docker.internal:host-gateway`, no log driver, no capability, `no-new-privileges`, a read-only root with a 64 MB `/tmp`, at most 256 processes and 1 GB of memory | `lockssh-run`, `lockssh-home` |
-| `init` | you (your uid and gid), with your home mounted: it writes the agents' files | |
+| `init` | you (your uid and gid), with your home mounted so that a bare `lockssh init` detects your agents; it writes the agents' files in the project | |
 | `profile add` | you, with `HOME=/tmp` | |
-| the agent commands: `mcp`, `status`, `run`, `request`, `doctor`... | `agent` | the socket volume of the workspace's lockssh lock that `lox run` runs, read-only ([below](#the-socket-of-lox-runs-lock)) |
+| the agent commands: `mcp`, `status`, `run`, `request`, `logout`, `doctor` (not `pii` yet: it runs with no socket) | `agent` | the socket volume of the workspace's lockssh lock that `lox run` runs, read-only ([below](#the-socket-of-lox-runs-lock)) |
 | `doctor --fix` | root for its repairs only, then `agent` for every check, as `doctor` | as `doctor` |
 | everything else: `help`... | `agent` | none |
 
@@ -121,7 +123,7 @@ under compose, with its socket in the volume
 names in `<workspace>/.lockfamily/up.json` (lockhub's `docs/lox-run.md`).
 The agent commands mount that volume on `/run/lockssh`, read-only
 (connecting to a socket needs no write), and no other: without it they stop
-(exit 2) and say why, and what to do (`lox run`), never falling back to the
+(exit 2), except `doctor`, which runs its checks anyway, and say why, and what to do (`lox run`), never falling back to the
 fixed `lockssh-run`. The launcher takes the volume only after the checks
 lea makes for its own agents:
 
@@ -206,7 +208,11 @@ use `lockssh console`, `lockssh init`, `lockssh profile add` (formerly
 `lockssh setup`, removed); the `lockssh-run` and
 `lockssh-home` volumes are the same. An agent entry that runs
 `sh -c 'exec docker run ... lockssh mcp'` keeps working; `lockssh init` now
-writes `lockssh mcp`, which goes through the launcher.
+writes `lockssh mcp`, which goes through the launcher. The console itself
+is now started by `lox run` only ([Run the console](#run-the-console)),
+with volumes of its own.
+
+### Migrating from a host install
 
 From a host install (the release archives and packages of v0.1.0, then
 `sudo lockssh install`): `install.sh` replaces the binary with the launcher,
@@ -246,7 +252,7 @@ may ask for other commands, and appends the profile to
 
 - put the private key in the console's home volume, owned by `lockssh` and
   mode 0600, at the path the profile names (`~/` is `/home/lockssh`):
-  `docker run --rm -i --user lockssh --entrypoint sh -v lockssh-home:/home/lockssh ghcr.io/davidgodefroid/lockssh -c 'umask 077; mkdir -p ~/.ssh; cat > ~/.ssh/id_ed25519' < key`
+  `docker run --rm -i --user lockssh --entrypoint sh -v lockssh-home:/home/lockssh ghcr.io/davidgodefroid/lockssh:X.Y.Z -c 'umask 077; mkdir -p ~/.ssh; cat > ~/.ssh/id_ed25519' < key`
   (under `lox run`, the lock's own home volume);
 - a host on your machine is `host.docker.internal`, which the launcher maps
   to your machine; a host in another container is its name on a network
@@ -285,8 +291,9 @@ warning while `lox run` starts none.
 The console runs hub-attached only: lockhub's `lox run` starts it, with its
 hub flags (`lockssh console` on its own refuses to start: "launched by `lox
 run` only"). That takes lockhub v0.11.0 or later, the first with the
-lockssh lock type ([lockhub#133](https://github.com/DavidGodefroid/lockhub/issues/133));
-an older `lox` starts no lockssh console. From the workspace:
+lockssh lock type ([lockhub#133](https://github.com/DavidGodefroid/lockhub/issues/133)),
+and v0.12.0 or later for lockssh v0.3.0 (confined agents); an older `lox`
+starts no lockssh console. From the workspace:
 
 ```sh
 lox add lockssh events   # its questions: host, port, login, key file, allow rules
@@ -370,11 +377,19 @@ and Codex in the `[mcp_servers.lockssh]` table `lockssh init codex` prints for
 `~/.codex/config.toml`. Keep the timeouts there (`timeout`,
 `tool_timeout_sec`): the console waits up to 5 minutes for an approval.
 
-The client commands run the same way: `lockssh status`, `lockssh run`...
+The client commands run the same way: `lockssh status`, `lockssh run`,
+`lockssh request`, `lockssh logout`. `lockssh pii` is not routed to the
+console by the launcher yet: it gets no socket and finds no console (use
+the MCP tools `lockssh_pii_list` and `lockssh_pii_add`;
+[#39](https://github.com/DavidGodefroid/lockssh/issues/39)).
 
 `lockssh doctor` runs as `agent` (`--fix` makes its repairs as root first); `docker run --rm --user lockssh -v
-lockssh-run:/run/lockssh -v lockssh-home:/home/lockssh
-ghcr.io/davidgodefroid/lockssh:X.Y.Z doctor` checks the console account.
+SOCKET_VOLUME:/run/lockssh -v HOME_VOLUME:/home/lockssh
+ghcr.io/davidgodefroid/lockssh:X.Y.Z doctor` checks the console account,
+with the lock's socket volume (`socket_volume` in `.lockfamily/up.json`,
+`lockfamily-<8 hex>_<instance>-run`) and its home volume (`docker volume
+ls`); the fixed `lockssh-run` and `lockssh-home` belong to the former
+launcher console.
 
 ## Agent in its own container
 
@@ -384,28 +399,19 @@ socket, the launcher cannot start the MCP server: the agent runs the
 console container. The two containers share only the socket volume.
 
 The console checks every peer by uid against its own container's accounts,
-where the agent's uid has none: name it when you start the console, with
-the release image as it is:
+where the agent's uid has none: name it in the lock's `allowed_uids` in
+`lockfamily.yaml`, which `lox run` reviews with you and passes to the
+console as `--allowed-uids` (lockhub v0.11.0 or later; v0.12.0 for lockssh
+v0.3.0). `lockssh console` on its own refuses to start ("launched by `lox
+run` only"). An image of your own can carry them too:
+`docker build --build-arg ALLOWED_UIDS=1000 .` writes them to `allowed_uids`
+in the image's `/etc/lockssh/system.toml`.
 
-```sh
-lockssh console --allowed-uids 1000
-```
-
-or at build time, in an image of your own:
-
-```sh
-docker build -t lockssh --build-arg ALLOWED_UIDS=1000 .
-LOCKSSH_IMAGE=lockssh lockssh console
-```
-
-`--allowed-uids` and `ALLOWED_UIDS` are comma-separated lists of uids: the
-build writes them to `allowed_uids` in the image's `/etc/lockssh/system.toml`,
-the flag adds them to it for that console only (the console prints them at
-start). Both refuse root (0), the console's own uid (10041) and 65534
-(nobody, the kernel's overflow uid). Only whoever starts the console sets
-them: the human, through the launcher (which passes the flag on) or
-through `lox run` (lockhub v0.2.4 or later: a lock's `allowed_uids` in the
-lockfamily.yaml `lox run` reviews with you); no client can. It is the uid the kernel reports
+`--allowed-uids` and `ALLOWED_UIDS` are comma-separated lists of uids; the
+flag adds them to the image's list for that console only (the console
+prints them at start). Both refuse root (0), the console's own uid (10041)
+and 65534 (nobody, the kernel's overflow uid). Only whoever starts the
+console sets them: the human, through `lox run`; no client can. It is the uid the kernel reports
 for the agent's process, as the console sees it: the agent container's uid
 when neither container remaps user namespaces. Every process of that uid,
 in any container that mounts the socket volume, may then use the console:
@@ -425,11 +431,13 @@ The agent's image needs what a client host has:
   the socket directory is mode 2710 and the socket 0660, group
   `lockssh-clients`.
 
-Start the agent's container with the socket volume and the project at the
-same path as the console's, for example:
+Start the agent's container with the lock's socket volume (the one
+`lox run` names in `.lockfamily/up.json`,
+`lockfamily-<8 hex>_<instance>-run`) and the project at the same path as
+the console's, for example:
 
 ```sh
-docker run … -v lockssh-run:/run/lockssh -v "$PWD:$PWD" -w "$PWD" agent-image
+docker run … -v lockfamily-<8 hex>_<instance>-run:/run/lockssh:ro -v "$PWD:$PWD" -w "$PWD" agent-image
 ```
 
 `lockssh init claude` then needs no change: the `lockssh mcp` it writes in
@@ -454,7 +462,8 @@ user = "deploy"
 key  = "~/.ssh/id_ed25519"
 ```
 
-and start the console on it: `LOCKSSH_DOCKER_ARGS="--network lockssh-net"`.
+and name the network in the lock's `networks` in `lockfamily.yaml`
+(lockhub v0.12.0 or later): `lox run`'s gateway for the lock joins it.
 
 Give the SSH account only the rights the allow list needs: a user of its
 own, no `sudo`, read access to the logs it must read. Never give the agent

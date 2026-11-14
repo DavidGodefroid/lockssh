@@ -27,9 +27,11 @@ The threat model is in [docs/security-model.md](docs/security-model.md).
 Issues of interest include, among others:
 
 - a way for a client (CLI or MCP) to run a command no allow rule of the
-  approved policy matches without a human's decision, to run a decided
-  ticket twice or with another argv, or to loosen the policy without
-  confirmation;
+  approved policy matches without a human's decision where the profile's
+  auto rules require one, to run a decided ticket twice or with another
+  argv, or to loosen the policy without confirmation;
+- an agent that reports running unconfined served by a profile without
+  `unconfined = true`;
 - an argv that the server's shell reads as more than one simple command
   (quoting), or any way to open a PTY, a shell, a forward or a subsystem;
 - the SSH key, a passphrase or a password reaching the agent's side, argv,
@@ -49,7 +51,9 @@ of scope, as documented in the threat model.
 `scripts/install.sh` and `lockssh update` check the cosign signatures of
 `checksums.txt` and of the image `ghcr.io/davidgodefroid/lockssh:X.Y.Z`
 against the release workflow run for that tag, then pin the launcher to the
-verified image digest. To check the image by hand:
+verified image digest, unless cosign is absent and `LOCKSSH_SKIP_COSIGN=1`
+is set (then only the archive checksum is checked, and the image runs by
+its tag). To check the image by hand:
 
 ```sh
 cosign verify \
