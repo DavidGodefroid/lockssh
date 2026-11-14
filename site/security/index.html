@@ -104,7 +104,7 @@
   <h2 id="injection">No shell, no climbing, no options</h2>
   <div class="prose">
     <p>The remote line is <code>exec</code> followed by the quoted argv: <code>exec 'systemctl' 'status' 'nginx'</code>. Nothing after it in the line can run, and an argv[0] that starts with <code>-</code> or <code>+</code> is refused.</p>
-    <p>In an allow rule, a glob never matches an argument that starts with <code>-</code> or <code>+</code>, unless the glob itself starts with that character (<code>-*</code>, <code>--since=*</code>) or follows a literal <code>--</code>; the policy review warns on both. So it cannot choose an option you never wrote: <code>git log *</code> does not allow <code>git log --output=/home/u/.bashrc</code>. A glob never covers a <code>.</code> or <code>..</code> segment, so <code>cat /var/log/*</code> does not reach <code>/etc/shadow</code>.</p>
+    <p>In an allow rule, a glob never matches an argument that starts with <code>-</code> or <code>+</code>, unless the glob itself starts with that character (<code>-*</code>, <code>+%*</code>) or follows a literal <code>--</code>; the policy review warns on both. So it cannot choose an option you never wrote: <code>git log *</code> does not allow <code>git log --output=/home/u/.bashrc</code>. A glob never covers a <code>.</code> or <code>..</code> segment, so <code>cat /var/log/*</code> does not reach <code>/etc/shadow</code>.</p>
     <p>The SSH account’s login shell must be a POSIX shell (sh, dash, bash, ksh, zsh): another one may read the quoted arguments differently.</p>
   </div>
 </section>
