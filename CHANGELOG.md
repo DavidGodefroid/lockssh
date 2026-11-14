@@ -12,6 +12,15 @@ All notable changes to lockssh. The format follows
   published as a full release marked Latest, and only a tag with a
   pre-release suffix (`vX.Y.Z-rc.N`) stays a pre-release, as for the other
   Locks. v0.2.0 is now marked Latest (#28).
+- lockkit v0.19.2 (from v0.19.0). Command output is masked less where it
+  held no secret: a bare stop word after a secret flag stays in clear
+  (`use --password or --token`), and a flag secret only through `auth`
+  (`--auth`, `--auth-local`, `--auth-host`) keeps an auth method name, so
+  initdb's `--auth-local and --auth-host` hint and `--auth-local peer` read
+  as written; `--auth admin:pw`, `--auth s3cr3tT0ken` and
+  `--password hunter2` stay masked (lockkit#198). The `email`, `iban`,
+  `card`, `be_niss`, `fr_nir`, `nl_bsn`, `us_ssn` and `ip` finders skip
+  text that cannot hold a match, with the same results (lockkit#195).
 
 ## [0.2.0] - 2026-11-13
 
