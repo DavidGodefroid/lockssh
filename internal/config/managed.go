@@ -160,6 +160,7 @@ type (
 		VaultPath      *string   `toml:"vault_path"`
 		CredentialsTTL *string   `toml:"credentials_ttl"`
 		Production     *bool     `toml:"production"`
+		Unconfined     *bool     `toml:"unconfined"`
 		Exec           *bool     `toml:"exec"`
 		Allow          *[]string `toml:"allow"`
 		Detectors      *[]string `toml:"detectors"`
@@ -213,7 +214,7 @@ func decodeManagedProfile(f *managed.File, key ...string) (bool, rawProfile, def
 		}
 		t = mProfile[*mAuto]{Host: s.Host, Port: s.Port, User: s.User, Auth: s.Auth, Key: s.Key, KnownHosts: s.KnownHosts,
 			Credentials: s.Credentials, VaultPath: s.VaultPath, CredentialsTTL: s.CredentialsTTL, Production: s.Production,
-			Exec: s.Exec, Allow: s.Allow, Detectors: s.Detectors, Limits: s.Limits}
+			Unconfined: s.Unconfined, Exec: s.Exec, Allow: s.Allow, Detectors: s.Detectors, Limits: s.Limits}
 		if s.Auto != nil {
 			auto = *s.Auto
 		}
@@ -241,6 +242,9 @@ func decodeManagedProfile(f *managed.File, key ...string) (bool, rawProfile, def
 	}
 	if t.Production != nil {
 		r.Production, set["production"] = *t.Production, true
+	}
+	if t.Unconfined != nil {
+		r.Unconfined, set["unconfined"] = *t.Unconfined, true
 	}
 	if t.Exec != nil {
 		r.Exec, set["exec"] = *t.Exec, true
@@ -419,6 +423,9 @@ func (m *Managed) fillDefaults(r rawProfile, set definedFunc) rawProfile {
 	}
 	if take("production") {
 		r.Production = d.Production
+	}
+	if take("unconfined") {
+		r.Unconfined = d.Unconfined
 	}
 	if take("exec") {
 		r.Exec = d.Exec

@@ -96,6 +96,7 @@ func TestDiff(t *testing.T) {
 		"known_hosts":    {func(p *Profile) { p.KnownHosts = "/tmp/kh" }, true},
 		"auto run ask":   {func(p *Profile) { p.Auto.Run = AutoAsk }, false},
 		"auto exec auto": {func(p *Profile) { p.Auto.Exec = AutoAuto }, true},
+		"unconfined on":  {func(p *Profile) { p.Unconfined = true }, true},
 	} {
 		ch := loosen(c.edit)
 		if len(ch) == 0 {
@@ -111,6 +112,37 @@ func TestDiff(t *testing.T) {
 		}
 	}
 	if d := strings.Join(a.Describe(), "\n"); !strings.Contains(d, "allow: uptime") || !strings.Contains(d, "exec: off") || !strings.Contains(d, "u@h:22") {
+		t.Errorf("describe:\n%s", d)
+	}
+}
+
+// TestUnconfined: the profile key unconfined is read into the profile base,
+// changes the policy fingerprint, and turning it off is a tightening.
+func TestUnconfined(t *testing.T) {
+	body := "host = \"h\"\nuser = \"u\"\nkey = \"k\"\n"
+	ps, err := parse(t, "[profiles.p]\n"+body+"\n[profiles.q]\n"+body+"unconfined = true\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, q := ps["p"], ps["q"]
+	if p.Unconfined || !q.Unconfined {
+		t.Fatalf("unconfined: p %t, q %t", p.Unconfined, q.Unconfined)
+	}
+	q.Name = p.Name
+	pp, qp := NewPolicy(p), NewPolicy(q)
+	if kconfig.Fingerprint(pp) == kconfig.Fingerprint(qp) {
+		t.Error("unconfined does not change the fingerprint")
+	}
+	loosens := func(ch []kconfig.Change) bool {
+		return slices.ContainsFunc(ch, func(c kconfig.Change) bool { return c.Loosens })
+	}
+	if ch := qp.Diff(pp); len(ch) != 1 || ch[0].Field != "unconfined" || !loosens(ch) {
+		t.Errorf("unconfined on: %+v", ch)
+	}
+	if ch := pp.Diff(qp); len(ch) != 1 || loosens(ch) {
+		t.Errorf("unconfined off: %+v", ch)
+	}
+	if d := strings.Join(qp.Describe(), "\n"); !strings.Contains(d, "unconfined: ON") {
 		t.Errorf("describe:\n%s", d)
 	}
 }

@@ -55,7 +55,7 @@ func Canonical(p Policy) Policy {
 // detector, a larger output cap, a longer request timeout, an auto rule
 // made looser (deny < ask < auto), a removed PII mask rule, a new PII
 // allow rule, and the shared rules of the profile base (kconfig.DiffBase:
-// the login, the SSH target, production, credentials). A new allow rule
+// the login, the SSH target, production, unconfined, credentials). A new allow rule
 // the review warns on carries its warnings.
 func (p Policy) Diff(approved kconfig.Policy) []kconfig.Change {
 	a, ok := approved.(Policy)
@@ -107,6 +107,9 @@ func (p Policy) Describe() []string {
 		"ssh: " + kconfig.SSHString(pr.SSH),
 		"known_hosts: " + orDefault(pr.KnownHosts),
 		fmt.Sprintf("production: %t · credentials: %s", pr.Production, pr.Credentials),
+	}
+	if pr.Unconfined {
+		lines = append(lines, "unconfined: ON (an agent that does not run confined is served)")
 	}
 	if len(pr.Allow) == 0 {
 		lines = append(lines, "allow: none")

@@ -10,8 +10,10 @@ on a real hub is lockhub's own end-to-end test); the agent's commands run in
 throwaway containers that share only the socket volume and the project.
 It also checks the image's accounts and modes, that the console refuses to
 start without its hub, that it refuses a peer that is neither lockssh
-nor in lockssh-clients, and that it enforces the company's managed file
-(/etc/lockfamily/managed.toml, mounted as lox mounts it).
+nor in lockssh-clients, that it refuses an agent that does not run confined
+unless the profile sets unconfined = true (lockkit#133), and that it
+enforces the company's managed file (/etc/lockfamily/managed.toml, mounted
+as lox mounts it).
 
     python3 test/docker/e2e.py IMAGE
 
@@ -38,6 +40,11 @@ SSH_IMAGE = "lscr.io/linuxserver/openssh-server:latest"
 SSH_USER = "deploy"
 HUB_URL, INSTANCE = "http://lockssh-e2e-hub:8443", "web-e2e"
 KEYDIR = tempfile.mkdtemp(prefix="lockssh-e2e-key-")
+# Lock Family state an unconfined agent sees ($XDG_STATE_HOME/lockfamily).
+STATE_DIR = tempfile.mkdtemp(prefix="lockssh-e2e-state-")
+os.mkdir(os.path.join(STATE_DIR, "lockfamily"))
+os.chmod(STATE_DIR, 0o755)
+os.chmod(os.path.join(STATE_DIR, "lockfamily"), 0o755)
 
 failures = []
 
@@ -169,6 +176,61 @@ def put_managed(body, mode="0644"):
        ' && chown 0:0 /etc/lockfamily/managed.toml && chmod "$2" /etc/lockfamily/managed.toml', "sh", body, mode)
 
 
+def console_up(project, profile, unconfined=False):
+    """Whether the agent's status reaches the console within two minutes."""
+    deadline = time.time() + 120
+    while time.time() < deadline:
+        if agent(project, "status", "--profile", profile, unconfined=unconfined).returncode == 0:
+            return True
+        time.sleep(2)
+    return False
+
+
+def confinement_checks(project):
+    """Confined agents (lockkit#133): an agent that does not run confined
+    (here, one that may write the project's .lockfamily/) is refused by
+    default; a non-production profile with unconfined = true serves it; a
+    production profile with it does not start."""
+    cfg = os.path.join(project, ".lockssh", "config.toml")
+    with open(cfg) as f:
+        saved = f.read()
+    target = f'host = "{SSHD}"\nport = 2222\nuser = "{SSH_USER}"\nkey = "~/.ssh/id_e2e"\nallow = ["uname -s"]\n'
+    with open(cfg, "a") as f:
+        f.write(f"\n[profiles.unconf]\n{target}unconfined = true\n"
+                f"\n[profiles.production-e2e]\n{target}production = true\nunconfined = true\n")
+    try:
+        sh("docker", "wait", CONSOLE, check_=False)
+        con = Console(project, "--profile", "dev")
+        check(console_up(project, "dev"), "confinement: the console serves a confined agent")
+        r = agent(project, "status", "--profile", "dev", unconfined=True)
+        check(r.returncode != 0 and "confined" in (r.stdout + r.stderr).lower(),
+              f"an unconfined agent is refused by default (exit {r.returncode})\n{r.stdout}{r.stderr}")
+        con.stop()
+        if failures:
+            print(con.text()[-4000:])
+
+        sh("docker", "wait", CONSOLE, check_=False)
+        con = Console(project, "--profile", "unconf")
+        check(console_up(project, "unconf", unconfined=True), "unconfined = true on a non-production profile serves an unconfined agent")
+        check("unconfined" in con.text().lower(), "the console warns of unconfined")
+        con.stop()
+        if failures:
+            print(con.text()[-4000:])
+
+        sh("docker", "wait", CONSOLE, check_=False)
+        con = Console(project, "--profile", "production-e2e")
+        code = con.wait(90)
+        check(code not in (None, 0) and "unconfined is never allowed on a production profile" in con.text()
+              and "Apply these changes?" not in con.text(),
+              f"a production profile with unconfined = true does not start (exit {code})")
+        con.stop()
+        if failures:
+            print(con.text()[-4000:])
+    finally:
+        with open(cfg, "w") as f:
+            f.write(saved)
+
+
 def managed_checks(project, mount):
     """The release image, no test tag, under a managed file: the console
     prints whose it is and records its fingerprint with the approval;
@@ -227,10 +289,14 @@ def managed_checks(project, mount):
         print(con.text()[-4000:])
 
 
-def agent(project, *args, user=None, extra=()):
+def agent(project, *args, user=None, extra=(), unconfined=False):
+    """The agent's command in a container of its own; unconfined, it sees
+    Lock Family state (a confine check that fails)."""
     cmd = ["docker", "run", "--rm", "-v", f"{project}:{project}", "-w", project, "-v", f"{RUN_VOL}:/run/lockssh"]
     if user:
         cmd += ["--user", user]
+    if unconfined:
+        cmd += ["-v", f"{STATE_DIR}:/xdg-state:ro", "-e", "XDG_STATE_HOME=/xdg-state"]
     cmd += list(extra) + [IMAGE] + list(args)
     return subprocess.run(cmd, capture_output=True, text=True, timeout=360)
 
@@ -372,6 +438,7 @@ def main():
                IMAGE, "console", "--allowed-uids", "0", check_=False)
         check(r.returncode != 0 and "leading zero" in r.stdout + r.stderr, f"--allowed-uids 0 refused\n{r.stdout}{r.stderr}")
 
+        confinement_checks(project)
         managed_checks(project, mount)
     finally:
         cleanup()

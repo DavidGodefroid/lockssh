@@ -35,6 +35,7 @@ credentials = "none"               # key: none (unencrypted, the default) | ask 
 vault_path  = ""                   # with credentials = "vault"
 known_hosts = ""                   # "" = the console account's ~/.ssh/known_hosts
 production  = false
+unconfined  = false                # true: serve an agent that does not run confined (never on production)
 exec        = false                # true: a command outside allow may be asked
 allow       = ["uptime", "df -h", "systemctl status *", "journalctl -u * -n * --no-pager"]
 detectors   = ["card", "email", "iban", "ip", "phone", "secret"]   # the default
@@ -64,11 +65,27 @@ production the last 8 characters of its fingerprint), then recorded. With a
 `known_hosts` file, a key the file does not hold is refused. A changed key
 is always refused.
 
+**Confined agents.** The console serves only an agent that runs confined:
+every lockssh client reports it in its handshake (in a container, no host
+container runtime socket it can reach, no Lock Family state, the project's
+`.lockfamily/` read-only), and an agent that does not, or that holds the
+group of the host's Docker socket, is refused with the reasons
+(`CodeUnconfined`, audited `refused-unconfined`). Agents run by lea are
+confined; an agent run on the host is not. `unconfined = true` on a
+non-production profile serves it anyway: turning it on is a loosening the
+human approves, the console shows a red banner, and every audit record and
+hub ticket of the connection is marked unconfined. A production profile
+with `unconfined = true` does not start, and a managed
+`require_confined_agent = true` refuses an unconfined agent whatever the
+profile says. The client and the console must be of the same lockssh
+version.
+
 **Policy.** Every security-relevant field is part of the profile's policy.
 The console shows it at its first start and asks the human to approve it;
 afterwards a change that tightens applies at once, and a change that
 loosens (a new allow rule, exec turned on, another host, user, key or
-known_hosts, a removed detector, a larger limit, a looser auto rule) waits
+known_hosts, unconfined turned on, a removed detector, a larger limit, a
+looser auto rule) waits
 for the human in the console (`:review`). An agent that edits the file
 loosens nothing.
 

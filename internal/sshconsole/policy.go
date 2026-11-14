@@ -31,7 +31,7 @@ func (p Policy) Diff(approved kconfig.Policy) []kconfig.Change {
 func (p Policy) Profile() console.Profile {
 	pr := p.Policy.Profile
 	return console.Profile{
-		Name: pr.Name, Production: pr.Production, Where: where(pr),
+		Name: pr.Name, Production: pr.Production, Unconfined: pr.Unconfined, Where: where(pr),
 		Host: pr.Host(), Port: pr.Port(), DefaultPort: kconfig.DefaultSSHPort,
 		User: pr.User, Credentials: pr.Credentials, VaultPath: pr.VaultPath, CredentialsTTL: pr.CredentialsTTL,
 		IdleTimeout: pr.IdleTimeout, MaxSession: pr.MaxSession,
