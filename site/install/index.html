@@ -64,12 +64,12 @@
   <h2 id="status">Where things stand</h2>
   <div class="prose">
     <p>lockssh v0.3.0 is the latest release. <code>lox add lockssh</code> and <code>lox run</code> serving it ship in lockhub v0.11.0 (<a href="https://github.com/DavidGodefroid/lockhub/issues/133">lockhub#133</a>), and lockssh v0.3.0’s confined agents in v0.12.0; an older <code>lox</code> does not know lockssh and cannot start its console. <code>lox add lockssh</code> pins the latest signed lockssh release.</p>
-    <p>lockssh has a Homebrew formula, on Linux and macOS. The <code>lockfamily</code> meta formula installs the whole family, lockssh and lockhub’s <code>lox</code> included; or install lockssh by name.</p>
+    <p>lockssh has a Homebrew formula, on Linux and macOS. The <code>lockfamily</code> meta formula installs the whole family, lockssh, lockhub’s <code>lox</code> and cosign included. The <code>lockssh</code> formula alone pulls in neither <code>lox</code> nor cosign: name them with it.</p>
   </div>
   <div class="install">
     <div class="install-head"><span>lockssh, with Homebrew</span></div>
     <pre tabindex="0" aria-label="Install commands"><code><span class="cmd">brew trust davidgodefroid/tap</span>
-<span class="cmd">brew install davidgodefroid/tap/lockfamily</span>   <span class="cmt"># or davidgodefroid/tap/lockssh alone</span></code></pre>
+<span class="cmd">brew install davidgodefroid/tap/lockfamily</span>   <span class="cmt"># or lockssh alone, with lox and cosign: brew install davidgodefroid/tap/lockssh davidgodefroid/tap/lox cosign</span></code></pre>
     <p class="install-note">Homebrew asks you to trust a third-party tap once. Upgrade with <code>brew upgrade lockssh</code>. Without Homebrew, install the launcher, below.</p>
   </div>
 </section>
@@ -78,7 +78,8 @@
   <h2 id="requirements">Requirements</h2>
   <ul class="prose">
     <li><strong>Docker</strong>, on Linux or on macOS (Docker Desktop). On Windows, install in WSL 2 with Docker Desktop’s WSL integration and run it there.</li>
-    <li><strong><a href="https://docs.sigstore.dev/cosign/system_config/installation/">cosign</a></strong> on <code>PATH</code>, for the install script and <code>lockssh update</code>: they check the release’s and the image’s signatures.</li>
+    <li><strong>lockhub’s <a href="https://github.com/DavidGodefroid/lockhub"><code>lox</code></a> v0.12.0 or later</strong>: it starts the console and serves your decisions.</li>
+    <li><strong><a href="https://docs.sigstore.dev/cosign/system_config/installation/">cosign</a> v2.5.0 or later</strong> on <code>PATH</code>: <code>lox add</code> and <code>lox run</code> verify every image with it, and the install script and <code>lockssh update</code> check the release’s and the image’s signatures.</li>
     <li><strong>An SSH account for lockssh</strong> on each server, with only the rights the allow list needs: a user of its own, no <code>sudo</code>, read access to the logs it must read. Its login shell must be a POSIX shell.</li>
   </ul>
 </section>
