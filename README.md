@@ -57,21 +57,27 @@ through the `lockssh` CLI, run confined (as lea runs agents).
 
 ## Install
 
-lockssh runs in Docker. With Homebrew (Linux or macOS):
+lockssh runs in Docker. It also takes lockhub's `lox` v0.12.0 or later
+([Quick start](#quick-start)) and cosign v2.5.0 or later: `lox add` and
+`lox run` verify every image with cosign. The `lockfamily` meta formula
+installs the whole family, lockssh, `lox` and cosign included. With Homebrew
+(Linux or macOS):
 
 ```sh
 brew trust davidgodefroid/tap
-brew install davidgodefroid/tap/lockssh
+brew install davidgodefroid/tap/lockfamily
+```
+
+Or lockssh alone, with `lox` and cosign (the `lockssh` formula does not pull
+them in):
+
+```sh
+brew install davidgodefroid/tap/lockssh davidgodefroid/tap/lox cosign
 ```
 
 The formula installs the `lockssh` launcher and pins the release images by
 digest, checked with cosign when the formula was bumped. Upgrade with
-`brew upgrade lockssh`, not `lockssh update`. The `lockfamily` meta formula
-installs the whole family, lockssh included, with lockhub's `lox`:
-
-```sh
-brew install davidgodefroid/tap/lockfamily
-```
+`brew upgrade lockssh`, not `lockssh update`.
 
 Without Homebrew, download the install script from the release you install,
 read it, then run it with that release:
@@ -85,7 +91,9 @@ LOCKSSH_VERSION=$V sh install.sh
 
 It checks the release's cosign signatures and installs the `lockssh`
 launcher, which runs every command in the signed image
-`ghcr.io/davidgodefroid/lockssh:X.Y.Z`, by digest.
+`ghcr.io/davidgodefroid/lockssh:X.Y.Z`, by digest. Install
+[lockhub's `lox`](https://github.com/DavidGodefroid/lockhub) v0.12.0 or later
+beside it.
 
 - `lockssh version` prints the launcher's and the image's versions; `lockssh update` updates both.
 - The release's `-vault` image adds the pinned Vault CLI for
